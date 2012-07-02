@@ -363,7 +363,7 @@
             return "%" + (str.length < 2 ? "0" + str : str).toUpperCase(); 
         }
 
-        unicode.percentEncode = function(str) {
+        unicode.uriEncode = function(str) {
             var ret = [],
                 i = 0,
                 code,
@@ -390,7 +390,7 @@
             return ret.join("");
         };
 
-        unicode.percentDecode = function(str) {
+        unicode.uriDecode = function(str) {
             return unicode.fromUTF8(str.replace(rpercent, replacer));
         };
 
