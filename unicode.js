@@ -24,7 +24,7 @@ String.fromUnicode = function( fromCharCode ) {
                 );
             }
             else {
-                args.push( 0xFFFE );
+                args.push( 0xFFFD );
             }
         }
         
@@ -32,28 +32,6 @@ String.fromUnicode = function( fromCharCode ) {
     };
  
 }(String.fromCharCode);
- 
- String.prototype.toUnicodePoints = function() {
-    var len = this.length,
-        i,
-        ret = [],
-        cur;
-        
-        for( i = 0; i < len; ++i ) {
-            cur = this.unicodeAt(i);
-            if( cur === -1 ) {
-                continue;
-            }
-            
-            if( !isFinite( cur ) ) {
-                break;    
-            }
-            
-            ret.push( cur );
-        }
-        
-        return ret;
- };
  
  String.prototype.unicodeAt = function( charCodeAt ) {
  
@@ -68,13 +46,13 @@ String.fromUnicode = function( fromCharCode ) {
         }
             
         if( !isFinite( code ) ) {
-            return 0xFFFE;
+            return 0xFFFD;
         }
         else if( 0xD800 <= code && code <= 0xDBFF ) {
             low = charCodeAt.call( str, idx+1 );
             
             if( !isFinite( low ) ) {
-                return 0xFFFE;
+                return 0xFFFD;
             }
             return ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000; 
         }
@@ -122,7 +100,7 @@ String.prototype.toUTF8 = function() {
             ));             
         }
         else {
-            ret.push( String.fromCharCode( 0xFFFE ) );
+            ret.push( String.fromCharCode( 0xFFFD ) );
         }
     }
     
@@ -160,11 +138,19 @@ String.fromUTF8 = function( str ) {
             codePoints.push( byte & 0x7F );
         }
         else {
-            codePoints.push( 0xFFFE );
+            codePoints.push( 0xFFFD );
         }
     
     }    
     return String.fromUnicode.apply( String, codePoints );
+};
+
+String.prototype.toUTF16 = function() {
+    return this.toString();
+};
+
+String.fromUTF16 = function( str) {
+    return str;
 };
 
 String.prototype.toUTF32 = function() {
@@ -197,17 +183,15 @@ String.prototype.toLatin1 = function() {
         
     while( !isNaN( codePoint = this.unicodeAt(i++) ) ) {
     
-        if( codePoint < 0 ) {
-            throw new TypeError( "Cannot encode character in Latin-1" );
-        }
-        else if( ( codePoint < 0x20 ) ||
+        if( 
+            ( codePoint < 0x20 ) ||
             ( 0x7E < codePoint && codePoint < 0xA0 ) ||
             ( codePoint > 0xFF )
         ) {
             throw new TypeError( "Cannot encode character in Latin-1" );
         }
         else {
-            ret.push( String.fromCharCode( codePoint & 0xFF ));
+            ret.push( String.fromCharCode( codePoint & 0xFF ) );
         }
     }
     
@@ -226,7 +210,7 @@ String.fromLatin1 = function( str ) {
         if( ( byte < 0x20 ) ||
             ( 0x7E < byte && byte < 0xA0 )
         ) {
-            throw new TypeError( "invalid Latin-1" );
+            codePoints.push( 0xFFFD );
         }
         else {
             codePoints.push( byte );
@@ -235,9 +219,6 @@ String.fromLatin1 = function( str ) {
     
     return String.fromUnicode.apply( String, codePoints );
 };
-
-
-
 
 (function() {
 
@@ -250,8 +231,8 @@ String.fromLatin1 = function( str ) {
             0x50,   0x51,   0x52,   0x53,   0x54,   0x55,   0x56,   0x57,   0x58,   0x59,   0x5A,   0x5B,   0x5C,   0x5D,   0x5E,   0x5F,
             0x60,   0x61,   0x62,   0x63,   0x64,   0x65,   0x66,   0x67,   0x68,   0x69,   0x6A,   0x6B,   0x6C,   0x6D,   0x6E,   0x6F,
             0x70,   0x71,   0x72,   0x73,   0x74,   0x75,   0x76,   0x77,   0x78,   0x79,   0x7A,   0x7B,   0x7C,   0x7D,   0x7E,   0x7F,
-            0x20AC, 0xFFFE, 0x201A, 0x192,  0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x160,  0x2039, 0x152,  0xFFFE, 0x017D, 0xFFFE,
-            0xFFFE, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x161,  0x203A, 0x153,  0xFFFE, 0x017E, 0x178,
+            0x20AC, 0xFFFD, 0x201A, 0x192,  0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x160,  0x2039, 0x152,  0xFFFD, 0x017D, 0xFFFD,
+            0xFFFD, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x161,  0x203A, 0x153,  0xFFFD, 0x017E, 0x178,
             0x160,  0xA1,   0xA2,   0xA3,   0xA4,   0xA5,   0xA6,   0xA7,   0xA8,   0xA9,   0xAA,   0xAB,   0xAC,   0xAD,   0xAE,   0xAF,
             0xB0,   0xB1,   0xB2,   0xB3,   0xB4,   0xB5,   0xB6,   0xB7,   0xB8,   0xB9,   0xBA,   0xBB,   0xBC,   0xBD,   0xBE,   0xBF,
             0xC0,   0xC1,   0xC2,   0xC3,   0xC4,   0xC5,   0xC6,   0xC7,   0xC8,   0xC9,   0xCA,   0xCB,   0xCC,   0xCD,   0xCE,   0xCF,
@@ -265,7 +246,7 @@ String.fromLatin1 = function( str ) {
     var l = 256;
     
     while( l-- ) {
-        unicodeToWindowsMap[ map[l] ] = l;
+        unicodeToWindowsMap[map[l]] = l;
     }
 
     String.prototype.toWindows1252 = function() {
@@ -278,10 +259,10 @@ String.fromLatin1 = function( str ) {
 
             code = +unicodeToWindowsMap[codePoint];
             
-            if( isNaN( code ) ) {
+            if( isNaN( code ) || codePoint === 0xFFFD ) {
                 throw new TypeError( "Cannot encode character in Windows-1252" );
             }
-            ret.push( String.fromCharCode( code ));
+            ret.push( String.fromCharCode( code ) );
         }
 
         return ret.join("");
@@ -322,3 +303,90 @@ String.fromUTF32 = function( str ) {
     
     return String.fromUnicode.apply( String, codePoints );
 };
+
+(function(){
+
+    var ByteArray = window.Uint8Array || window.Array,
+        toArray = [].slice;
+
+    String.prototype.toByteArray = function () {
+
+        var tmp = [],
+            i = 0, 
+            bytes,
+            len,
+            byteArr;
+
+        while( !isNaN( bytes = this.charCodeAt(i++) ) ) {
+            
+            if( bytes > 0xFF ) {
+                tmp.push(
+                    ((bytes & 0xFF00) >>> 8),
+                    bytes & 0xFF
+                );
+            }
+            else {
+                tmp.push( bytes & 0xFF );
+            }
+        }
+        len = tmp.length;
+        byteArr = new ByteArray(len);
+        
+        for( i = 0; i < len; ++i ) {
+            byteArr[i] = tmp[i];
+        }
+        
+        return byteArr;
+    };
+    
+    String.fromByteArray = function( arr ) {
+       arr = toArray.call( arr );
+       return String.fromCharCode.apply( String, arr );
+    };
+    
+})();
+
+(function(){
+
+    var rpercent = /%([a-fA-F0-9]{2})/g,
+    
+        replacer = function( full, m1 ) {
+            return String.fromCharCode(parseInt( m1, 16 ));
+        };
+
+    function percentEncode( num ) {
+        var str = num.toString(16);
+        return "%" + (str.length < 2 ? "0" + str : str).toUpperCase(); 
+    }
+
+    String.prototype.urlEncode = function() {
+        var str = this.toUTF8(),
+            ret = [],
+            i = 0,
+            code,
+            len = str.length;
+        
+        while( !isNaN( code = str.charCodeAt(i++) ) ) {
+            if(
+                67 <= code && code <= 90 ||
+                97 <= code && code <= 122 ||
+                48 <= code && code <= 57 ||
+                45 <= code && code <= 46 ||
+                code === 95 ||
+                code === 126
+            ) {
+                ret.push( str.charAt( i-1 ) );
+            }
+            else {
+                ret.push( percentEncode( code ) );
+            }
+        }
+        
+        return ret.join("");
+    };
+    
+    String.prototype.urlDecode = function() {
+        return String.fromUTF8(this.replace(rpercent, replacer));
+    };
+
+})();
