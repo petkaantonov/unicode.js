@@ -36,44 +36,6 @@ ISO-2022-JP <-- stateful?
 Korean <-- multi-byte
 
 
-JSON.stringify( $(".chset tr:gt(1):lt(16) td").map( function(i,elem) {
-   if( $( "small", elem ).length ) {
-    var text = $( "small:last", elem ).text();
-    text = text.match(/[a-fA-F0-9]{4}/)[0];
-        return "0x"+text;
-    }
-    else {
-        return "0xFFFD";
-    }
-}).get().map(function(v,i){
-    if( i % 16 + 1 === 16 ) {
-        return v + "ASD";
-    }
-    else {
-        return v;
-    }
-})).replace( /"/g, "").replace( /ASD/g, "\n" );
-
-JSON.stringify( $(".chset tr:gt(0):lt(16) td").map( function(i,elem) {
-   if( $( "small", elem ).length ) {
-    var text = $( "small:last", elem ).text();
-    text = text.match(/[a-fA-F0-9]{4}/)[0];
-        return "0x"+text;
-    }
-    else {
-        return "0xFFFD";
-    }
-}).get().map(function(v,i){
-    if( i % 16 + 1 === 16 ) {
-        return v + "ASD";
-    }
-    else {
-        return v;
-    }
-})).replace( /"/g, "").replace( /ASD/g, "\n" );
-
-
-
 */
 ;(function(global, String) {
 "use strict";
@@ -181,7 +143,7 @@ JSON.stringify( $(".chset tr:gt(0):lt(16) td").map( function(i,elem) {
                     code = +unicodeMap[codePoint];
 
                     if( isNaN( code ) || codePoint === 0xFFFD ) {
-                        throw new TypeError( "Cannot encode character in "+name );
+                        continue;
                     }
                     ret.push( String.fromCharCode( code ) );
                 }
@@ -210,270 +172,7 @@ JSON.stringify( $(".chset tr:gt(0):lt(16) td").map( function(i,elem) {
                 unicode["from"+aliases[l]] = unicode["from" + propName];
             }
     }
-     
-
-    unicode.toUTF8 = function( str ) {
-
-        var i = 0, 
-            codePoint,
-            ret = [];
-
-        while( !isNaN( codePoint = unicode.at( str, i++) ) ) {
-
-            if( codePoint < 0 ) {
-                continue;
-            }
-            else if( codePoint <= 0x7F ) {
-                ret.push( String.fromCharCode( codePoint & 0x7F ) );
-            }
-            else if( codePoint <= 0x7FF ) {
-                ret.push( String.fromCharCode( 
-                    0xC0 | ( ( codePoint & 0x7C0 ) >>> 6 ),
-                    0x80 | ( codePoint & 0x3F )
-                ));
-            }
-            else if( codePoint <= 0xFFFF ) {
-                ret.push( String.fromCharCode(
-                    0xE0 | ( ( codePoint & 0xF000 ) >>> 12 ),
-                    0x80 | ( ( codePoint & 0xFC0 ) >>> 6 ),
-                    0x80 | ( codePoint & 0x3F  )
-                ));        
-            }
-            else if( codePoint <= 0x1FFFFF ) {
-                ret.push( String.fromCharCode(
-                    0xF0 | ( ( codePoint & 0x1C0000 ) >>> 18 ),
-                    0x80 | ( ( codePoint & 0x3F000 ) >>> 12 ),
-                    0x80 | ( ( codePoint & 0xFC0 ) >>> 6 ),
-                    0x80 | ( codePoint & 0x3F  )
-                ));             
-            }
-            else {
-                ret.push( String.fromCharCode( 0xFFFD ) );
-            }
-        }
-
-        return ret.join("");
-    };
-
-    unicode.fromUTF8 = function( str ) {
-        //Decode unicode code points from utf8 encoded string
-        var codePoints = [],
-            i = 0, byte;
-
-        while( !isNaN( byte = str.charCodeAt(i++) ) ) {
-            if( (byte & 0xF8) === 0xF0 ) {
-                codePoints.push(
-                    ((byte & 0x7) << 18) |
-                    ((str.charCodeAt(i++) & 0x3F) << 12) |
-                    ((str.charCodeAt(i++) & 0x3F) << 6) |
-                    (str.charCodeAt(i++) & 0x3F)
-                );
-            }
-            else if( (byte & 0xF0) === 0xE0 ) {
-                codePoints.push(
-                    ((byte & 0xF) << 12) |
-                    ((str.charCodeAt(i++) & 0x3F) << 6 ) |
-                    (str.charCodeAt(i++) & 0x3F)
-                );
-            }
-            else if( (byte & 0xE0) === 0xC0 ) {
-                codePoints.push(
-                    ((byte & 0x1F) << 6) |
-                    ( (str.charCodeAt(i++) & 0x3F) )
-                );
-            }
-            else if( (byte & 0x80) === 0x00 ) {
-                codePoints.push( byte & 0x7F );
-            }
-            else {
-                codePoints.push( 0xFFFD );
-            }
-
-        }    
-        return unicode.from.apply( String, codePoints );
-    };
-
-
-    unicode.toUTF32 = function( str ) {
-        var i = 0, 
-            codePoint,
-            ret = [];
-
-        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
-
-            if( codePoint < 0 ) {
-                continue;
-            }
-            else {
-                ret.push( String.fromCharCode(
-                    (codePoint & 0xFF000000) >>> 24,
-                    (codePoint & 0xFF0000) >>> 16,
-                    (codePoint & 0xFF00) >>> 8,
-                    (codePoint & 0xFF)
-                ));
-            }
-        }
-
-        return ret.join("");
-    };
-
-    unicode.toLatin1 = function( str ) {
-        var i = 0, 
-            codePoint,
-            ret = [];
-
-        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
-
-            if( 
-                ( codePoint < 0x20 ) ||
-                ( 0x7E < codePoint && codePoint < 0xA0 ) ||
-                ( codePoint > 0xFF )
-            ) {
-                throw new TypeError( "Cannot encode character in Latin-1" );
-            }
-            else {
-                ret.push( String.fromCharCode( codePoint & 0xFF ) );
-            }
-        }
-
-        return ret.join("");
-
-    };
-
-    unicode.toISO88591 = unicode.toLatin1;
-
-    unicode.fromLatin1 = function( str ) {
-        //Decode unicode code points from ISO-8859-1 encoded string
-        var codePoints = [],
-            i = 0, byte, len = str.length;
-
-        for( i = 0; i < len; i ++ ) {
-            var byte = str.charCodeAt(i) & 0xFF;
-
-            if( ( byte < 0x20 ) ||
-                ( 0x7E < byte && byte < 0xA0 )
-            ) {
-                codePoints.push( 0xFFFD );
-            }
-            else {
-                codePoints.push( byte );
-            }
-        }
-
-        return unicode.from.apply( String, codePoints );
-    };
-
-    unicode.fromISO88591 = unicode.fromLatin1;
-
-    unicode.fromUTF32 = function( str ) {
-        //Decode unicode code points from utf32 encoded string
-        var codePoints = [],
-            i = 0, byte, len = str.length;
-
-        if( len % 4 !== 0 ) {
-            throw new TypeError( "invalid utf32" );  
-        }
-
-        for( i = 0; i < len; i += 4 ) {
-            codePoints.push(
-                ((str.charCodeAt(i) & 0xFF)   << 24 )  |
-                ((str.charCodeAt(i+1) & 0xFF)  << 16 )  |
-                ((str.charCodeAt(i+2) & 0xFF) << 8  )  |
-                (str.charCodeAt(i+3) & 0xFF)
-            );
-        }
-
-        return unicode.from.apply( String, codePoints );
-    };
-
-    (function(){
-
-        var ByteArray = global.Uint8Array || global.Array,
-            toArray = [].slice;
-
-        unicode.toByteArray = function (str) {
-
-            var tmp = [],
-                i = 0, 
-                bytes,
-                len,
-                byteArr;
-
-            while( !isNaN( bytes = str.charCodeAt(i++) ) ) {
-
-                if( bytes > 0xFF ) {
-                    tmp.push(
-                        ((bytes & 0xFF00) >>> 8),
-                        bytes & 0xFF
-                    );
-                }
-                else {
-                    tmp.push( bytes & 0xFF );
-                }
-            }
-            len = tmp.length;
-            byteArr = new ByteArray(len);
-
-            for( i = 0; i < len; ++i ) {
-                byteArr[i] = tmp[i];
-            }
-
-            return byteArr;
-        };
-
-        unicode.fromByteArray = function( arr ) {
-           arr = toArray.call( arr );
-           return String.fromCharCode.apply( String, arr );
-        };
-
-    })();
-
-    (function(){
-
-        var rpercent = /%([a-fA-F0-9]{2})/g,
-
-            replacer = function( full, m1 ) {
-                return String.fromCharCode(parseInt( m1, 16 ));
-            };
-
-        function percentEncode( num ) {
-            var str = num.toString(16);
-            return "%" + (str.length < 2 ? "0" + str : str).toUpperCase(); 
-        }
-
-        unicode.uriEncode = function(str) {
-            var ret = [],
-                i = 0,
-                code,
-                len = str.length;
-                
-            str = unicode.toUTF8(str);
-            
-            while( !isNaN( code = str.charCodeAt(i++) ) ) {
-                if(
-                    67 <= code && code <= 90 ||
-                    97 <= code && code <= 122 ||
-                    48 <= code && code <= 57 ||
-                    45 <= code && code <= 46 ||
-                    code === 95 ||
-                    code === 126
-                ) {
-                    ret.push( str.charAt( i-1 ) );
-                }
-                else {
-                    ret.push( percentEncode( code ) );
-                }
-            }
-
-            return ret.join("");
-        };
-
-        unicode.uriDecode = function(str) {
-            return unicode.fromUTF8(str.replace(rpercent, replacer));
-        };
-
-    })();
-
+    
     make8BitCharset( ascii.concat([
         0x20AC,0xFFFD,0x201A,0x0192,0x201E,0x2026,0x2020,0x2021,0x02C6,0x2030,0xFFFD,0x2039,0x0152,0xFFFD,0xFFFD,0xFFFD
         ,0xFFFD,0x2018,0x2019,0x201C,0x201D,0x2022,0x2013,0x2014,0x02DC,0x2122,0xFFFD,0x203A,0x0153,0xFFFD,0xFFFD,0x0178
@@ -904,6 +603,271 @@ JSON.stringify( $(".chset tr:gt(0):lt(16) td").map( function(i,elem) {
         ,0x00E0,0x00E1,0x00E2,0x0103,0x00E4,0x0107,0x00E6,0x00E7,0x00E8,0x00E9,0x00EA,0x00EB,0x00EC,0x00ED,0x00EE,0x00EF
         ,0x0111,0x0144,0x00F2,0x00F3,0x00F4,0x0151,0x00F6,0x015B,0x0171,0x00F9,0x00FA,0x00FB,0x00FC,0x0119,0x021B,0x00FF
     ], "ISO885916", "ISO-8859-16", "Latin10", "SouthEasternEuropean" );
+     
+
+    unicode.toUTF8 = function( str ) {
+
+        var i = 0, 
+            codePoint,
+            ret = [];
+
+        while( !isNaN( codePoint = unicode.at( str, i++) ) ) {
+
+            if( codePoint < 0 ) {
+                continue;
+            }
+            else if( codePoint <= 0x7F ) {
+                ret.push( String.fromCharCode( codePoint & 0x7F ) );
+            }
+            else if( codePoint <= 0x7FF ) {
+                ret.push( String.fromCharCode( 
+                    0xC0 | ( ( codePoint & 0x7C0 ) >>> 6 ),
+                    0x80 | ( codePoint & 0x3F )
+                ));
+            }
+            else if( codePoint <= 0xFFFF ) {
+                ret.push( String.fromCharCode(
+                    0xE0 | ( ( codePoint & 0xF000 ) >>> 12 ),
+                    0x80 | ( ( codePoint & 0xFC0 ) >>> 6 ),
+                    0x80 | ( codePoint & 0x3F  )
+                ));        
+            }
+            else if( codePoint <= 0x1FFFFF ) {
+                ret.push( String.fromCharCode(
+                    0xF0 | ( ( codePoint & 0x1C0000 ) >>> 18 ),
+                    0x80 | ( ( codePoint & 0x3F000 ) >>> 12 ),
+                    0x80 | ( ( codePoint & 0xFC0 ) >>> 6 ),
+                    0x80 | ( codePoint & 0x3F  )
+                ));             
+            }
+            else {
+                ret.push( String.fromCharCode( 0xFFFD ) );
+            }
+        }
+
+        return ret.join("");
+    };
+
+    unicode.fromUTF8 = function( str ) {
+        //Decode unicode code points from utf8 encoded string
+        var codePoints = [],
+            i = 0, byte;
+
+        while( !isNaN( byte = str.charCodeAt(i++) ) ) {
+            if( (byte & 0xF8) === 0xF0 ) {
+                codePoints.push(
+                    ((byte & 0x7) << 18) |
+                    ((str.charCodeAt(i++) & 0x3F) << 12) |
+                    ((str.charCodeAt(i++) & 0x3F) << 6) |
+                    (str.charCodeAt(i++) & 0x3F)
+                );
+            }
+            else if( (byte & 0xF0) === 0xE0 ) {
+                codePoints.push(
+                    ((byte & 0xF) << 12) |
+                    ((str.charCodeAt(i++) & 0x3F) << 6 ) |
+                    (str.charCodeAt(i++) & 0x3F)
+                );
+            }
+            else if( (byte & 0xE0) === 0xC0 ) {
+                codePoints.push(
+                    ((byte & 0x1F) << 6) |
+                    ( (str.charCodeAt(i++) & 0x3F) )
+                );
+            }
+            else if( (byte & 0x80) === 0x00 ) {
+                codePoints.push( byte & 0x7F );
+            }
+            else {
+                codePoints.push( 0xFFFD );
+            }
+
+        }    
+        return unicode.from.apply( String, codePoints );
+    };
+
+
+    unicode.toUTF32 = function( str ) {
+        var i = 0, 
+            codePoint,
+            ret = [];
+
+        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
+
+            if( codePoint < 0 ) {
+                continue;
+            }
+            else {
+                ret.push( String.fromCharCode(
+                    (codePoint & 0xFF000000) >>> 24,
+                    (codePoint & 0xFF0000) >>> 16,
+                    (codePoint & 0xFF00) >>> 8,
+                    (codePoint & 0xFF)
+                ));
+            }
+        }
+
+        return ret.join("");
+    };
+
+    unicode.toLatin1 = function( str ) {
+        var i = 0, 
+            codePoint,
+            ret = [];
+
+        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
+
+            if( 
+                ( codePoint < 0x20 ) ||
+                ( 0x7E < codePoint && codePoint < 0xA0 ) ||
+                ( codePoint > 0xFF )
+            ) {
+                throw new TypeError( "Cannot encode character in Latin-1" );
+            }
+            else {
+                ret.push( String.fromCharCode( codePoint & 0xFF ) );
+            }
+        }
+
+        return ret.join("");
+
+    };
+
+    unicode.toISO88591 = unicode.toLatin1;
+
+    unicode.fromLatin1 = function( str ) {
+        //Decode unicode code points from ISO-8859-1 encoded string
+        var codePoints = [],
+            i = 0, byte, len = str.length;
+
+        for( i = 0; i < len; i ++ ) {
+            var byte = str.charCodeAt(i) & 0xFF;
+
+            if( ( byte < 0x20 ) ||
+                ( 0x7E < byte && byte < 0xA0 )
+            ) {
+                codePoints.push( 0xFFFD );
+            }
+            else {
+                codePoints.push( byte );
+            }
+        }
+
+        return unicode.from.apply( String, codePoints );
+    };
+
+    unicode.fromISO88591 = unicode.fromLatin1;
+
+    unicode.fromUTF32 = function( str ) {
+        //Decode unicode code points from utf32 encoded string
+        var codePoints = [],
+            i = 0, byte, len = str.length;
+
+        if( len % 4 !== 0 ) {
+            throw new TypeError( "invalid utf32" );  
+        }
+
+        for( i = 0; i < len; i += 4 ) {
+            codePoints.push(
+                ((str.charCodeAt(i) & 0xFF)   << 24 )  |
+                ((str.charCodeAt(i+1) & 0xFF)  << 16 )  |
+                ((str.charCodeAt(i+2) & 0xFF) << 8  )  |
+                (str.charCodeAt(i+3) & 0xFF)
+            );
+        }
+
+        return unicode.from.apply( String, codePoints );
+    };
+
+    (function(){
+
+        var ByteArray = global.Uint8Array || global.Array,
+            toArray = [].slice;
+
+        unicode.toByteArray = function (str) {
+
+            var tmp = [],
+                i = 0, 
+                bytes,
+                len,
+                byteArr;
+
+            while( !isNaN( bytes = str.charCodeAt(i++) ) ) {
+
+                if( bytes > 0xFF ) {
+                    tmp.push(
+                        ((bytes & 0xFF00) >>> 8),
+                        bytes & 0xFF
+                    );
+                }
+                else {
+                    tmp.push( bytes & 0xFF );
+                }
+            }
+            len = tmp.length;
+            byteArr = new ByteArray(len);
+
+            for( i = 0; i < len; ++i ) {
+                byteArr[i] = tmp[i];
+            }
+
+            return byteArr;
+        };
+
+        unicode.fromByteArray = function( arr ) {
+           arr = toArray.call( arr );
+           return String.fromCharCode.apply( String, arr );
+        };
+
+    })();
+
+    (function(){
+
+        var rpercent = /%([a-fA-F0-9]{2})/g,
+
+            replacer = function( full, m1 ) {
+                return String.fromCharCode(parseInt( m1, 16 ));
+            };
+
+        function percentEncode( num ) {
+            var str = num.toString(16);
+            return "%" + (str.length < 2 ? "0" + str : str).toUpperCase(); 
+        }
+
+        unicode.uriEncode = function(str) {
+            var ret = [],
+                i = 0,
+                code,
+                len = str.length;
+                
+            str = unicode.toUTF8(str);
+            
+            while( !isNaN( code = str.charCodeAt(i++) ) ) {
+                if(
+                    67 <= code && code <= 90 ||
+                    97 <= code && code <= 122 ||
+                    48 <= code && code <= 57 ||
+                    45 <= code && code <= 46 ||
+                    code === 95 ||
+                    code === 126
+                ) {
+                    ret.push( str.charAt( i-1 ) );
+                }
+                else {
+                    ret.push( percentEncode( code ) );
+                }
+            }
+
+            return ret.join("");
+        };
+
+        unicode.uriDecode = function(str) {
+            return unicode.fromUTF8(str.replace(rpercent, replacer));
+        };
+
+    })();
+
+
 
     if( typeof module !== "undefined" && module.exports ) {
         module.exports = unicode;
