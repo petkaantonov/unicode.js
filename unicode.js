@@ -52,6 +52,10 @@ Korean <-- multi-byte
     ];
 
     var unicode = {};
+    
+    unicode.REPLACEMENT_FALLBACK = 1;
+    unicode.IGNORE_FALLBACK = 2;
+    unicode.ERROR_FALLBACK = 3;
 
     unicode.from = function( fromCharCode ) {
  
@@ -642,7 +646,7 @@ Korean <-- multi-byte
             codePoint,
             ret = [];
 
-        while( !isNaN( codePoint = unicode.at( str, i++) ) ) {
+        while( !isNaN( codePoint = unicode.at( str, i++ ) ) ) {
 
             if( codePoint < 0 ) {
                 continue;
@@ -678,8 +682,18 @@ Korean <-- multi-byte
 
         return ret.join("");
     };
+    
+    
 
-    unicode.fromUTF8 = function( str ) {
+    unicode.fromUTF8 = function( str, fallback ) {
+        switch( fallback ) {
+            case unicode.REPLACEMENT_FALLBACK:
+            case unicode.ERROR_FALLBACK:
+            case unicode.IGNORE_FALLBACK:
+                break;
+            default:
+                fallback = unicode.REPLACEMENT_FALLBACK;
+        }
         //Decode unicode code points from utf8 encoded binarystring
         var codePoints = [],
             ch2, ch3, ch4,
@@ -750,14 +764,28 @@ Korean <-- multi-byte
             else {
                 codePoint = 0xFFFD;
             }
-                //Surrogate code point or non-character
+                //Surrogate code point, non-character or too high codepoint
             if( 0xD800 <= codePoint && codePoint <= 0xDFFF ||
                 codePoint === 0xFFFE ||
-                codePoint === 0xFFFF ) {
+                codePoint === 0xFFFF ||
+                codePoint > 0x10FFFF ) {
                 codePoint = 0xFFFD;
             }
             
-            codePoints.push( codePoint );
+            if( codePoint === 0xFFFD ) {
+                if( fallback === unicode.REPLACEMENT_FALLBACK ) {
+                    codePoints.push( codePoint );
+                }
+                else if( fallback === unicode.ERROR_FALLBACK ) {
+                    throw new TypeError( "Invalid UTF-8 sequence");
+                }
+                else if( fallback === unicode.IGNORE_FALLBACK ) {
+                    continue;
+                }
+            }
+            else {
+                codePoints.push( codePoint );
+            }
 
         }    
         return unicode.from.apply( String, codePoints );
