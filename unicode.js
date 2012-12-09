@@ -47,6 +47,7 @@ Korean <-- multi-byte
         return new Type();
     };
     
+    //Credi panzi @ stackoverflow http://stackoverflow.com/a/3535758/995876
     function err(message, fileName, lineNumber) {
         var err = new Error();
 
@@ -177,6 +178,7 @@ Korean <-- multi-byte
     
     unicode.MACHINE_ENDIANESS = MACHINE_ENDIANESS;
 
+    //String.fromCharCode that works for astral planes
     unicode.from = function( fromCharCode ) {
  
         return function() {
@@ -212,6 +214,13 @@ Korean <-- multi-byte
 
     }(String.fromCharCode);
     
+    //String.prototype.charCodeAt that works for astral planes
+    //Return -1 for low surrogate
+    //Return 0xFFFD if high surrogate is met and  low surrogate at next index is not valid
+    //Return NaN if if idx is out of bounds
+    //Return code point otherwise
+    
+    //TODO make return values make more sense
     unicode.at = function( charCodeAt ) {
         return function( str, num ) {
             var idx = +num,
@@ -1638,14 +1647,9 @@ Korean <-- multi-byte
                     continue;
                 }
 
-                if( ( ( 0x09 <= codePoint && codePoint <= 0x0A ) ||
-                        codePoint === 0x0D ||
-                     ( 0x20 <= codePoint && codePoint <= 0x7E ) ) &&
-                     codePoint !== 39 ) {
-                    ret.push( String.fromCharCode(codePoint));
-                }
-                else if( codePoint === 34 ) {
-                    ret.push(  "&quot;");
+                //TODO what an ugly mess
+                if( codePoint === 34 ) {
+                    ret.push( "&quot;");
                 }
                 else if( codePoint === 38 ) {
                     ret.push( "&amp;" ) ;
@@ -1656,6 +1660,12 @@ Korean <-- multi-byte
                 else if( codePoint === 62 ) {
                     ret.push( "&gt;" );
                 }
+                else if( ( ( 0x09 <= codePoint && codePoint <= 0x0A ) ||
+                        codePoint === 0x0D ||
+                     ( 0x20 <= codePoint && codePoint <= 0x7E ) ) &&
+                     codePoint !== 39 ) {
+                    ret.push( String.fromCharCode(codePoint));
+                }´
                 else {
                     ret.push( "&#" + codePoint + ";" );
                 }
