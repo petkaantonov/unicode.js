@@ -648,9 +648,17 @@ Korean <-- multi-byte
 
         while( !isNaN( codePoint = unicode.at( str, i++ ) ) ) {
 
-            if( codePoint < 0 ) {
+            if( codePoint < 0 ) { //-1 signals low surrogate, that we got a surrogate pair on last iteration.
                 continue;
             }
+            else if( codePoint === 0xFFFD || //Don't encode replacement characters, non characters or invalid codepoints
+                codePoint === 0xFFFE ||
+                codePoint === 0xFFFF ||
+                codePoint > 0x10FFFF
+            ) { 
+                continue;
+            }
+            
             else if( codePoint <= 0x7F ) {
                 ret.push( String.fromCharCode( codePoint & 0x7F ) );
             }
@@ -667,16 +675,13 @@ Korean <-- multi-byte
                     0x80 | ( codePoint & 0x3F  )
                 ));        
             }
-            else if( codePoint <= 0x1FFFFF ) {
+            else if( codePoint <= 0x10FFFF ) {
                 ret.push( String.fromCharCode(
                     0xF0 | ( ( codePoint & 0x1C0000 ) >>> 18 ),
                     0x80 | ( ( codePoint & 0x3F000 ) >>> 12 ),
                     0x80 | ( ( codePoint & 0xFC0 ) >>> 6 ),
                     0x80 | ( codePoint & 0x3F  )
                 ));             
-            }
-            else {
-                ret.push( String.fromCharCode( 0xFFFD ) );
             }
         }
 
@@ -791,6 +796,7 @@ Korean <-- multi-byte
         return unicode.from.apply( String, codePoints );
     };
 
+    unicode.UTF8BOM = unicode.toUTF8("\ufeff");
 
     unicode.toUTF32LE = function( str ) {
         var i = 0, 
