@@ -723,9 +723,11 @@ Korean <-- multi-byte
                     codePoint = 0xFFFD;
                }
                
+               
                if( codePoint === 0xFFFD ) {
                    i -= 3; //Backtrack
                }
+               
             }
             else if( (byte & 0xF0) === 0xE0 ) {
                 codePoint = ((byte & 0xF) << 12) |

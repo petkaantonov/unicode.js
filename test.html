@@ -15,18 +15,17 @@ var filelines = file.split("\n").filter( function(v){
 }).map( function(v){
     var match = v.match( /"([\d\D]+)"/     );
     if( match && match.length === 2 ) {
-        return match[1];
+        return {
+            line: v,
+            match: match[1]
+        };
     }
     return null;
 }).filter(Boolean);
 
 
-filelines.forEach( function(str, i) {
-    var result = unicode.fromUTF8( str );
-    var hexes = result.split("").map( function(v){
-        return "0x"+v.charCodeAt(0).toString(16);
-    }).join(", ");
-    console.log( i+1 + " " +  "." + " "+ result +" " + "|    |" + " "+ hexes+ " " + result.length + "\n" );
+filelines.forEach( function( obj, i) {
+    console.log( obj.line, unicode.fromUTF8( obj.match));
 
 });
 
