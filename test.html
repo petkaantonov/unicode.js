@@ -5,5 +5,168 @@
 </head>
 <body>
 <script src="unicode.js" type="text/javascript"></script>
+<script type="text/javascript">
+
+var tests = [
+    "Îºá½¹ÏƒÎ¼Îµ",
+    "\x00",
+    "Â€",
+    "à\xa0€",
+    "ð€€",
+    "øˆ€€€",
+    "ü„€€€€",
+    "",
+    "ß¿",
+    "ï¿¿",
+    "÷¿¿¿",
+    "û¿¿¿¿",
+    "ý¿¿¿¿¿",
+    "íŸ¿",
+    "î€€",
+    "ï¿½",
+    "ô¿¿",
+"ô€€",
+    "€",
+    "¿",
+    "€¿",
+    "€¿€",
+    "€¿€¿",
+    "€¿€¿€",
+    "€¿€¿€¿",
+    "€¿€¿€¿€",
+    "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿",  // Sequence of all 64 possible continuation bytes (0x80-0xbf)
+    "À Á Â Ã Ä Å Æ Ç È É Ê Ë Ì Í Î Ï Ð Ñ Ò Ó Ô Õ Ö × Ø Ù Ú Û Ü Ý Þ ß ", //3.2.1  All 32 first bytes of 2-byte sequences (0xc0-0xdf), 
+    "à á â ã ä å æ ç è é ê ë ì í î ï ", //3.2.2  All 16 first bytes of 3-byte sequences (0xe0-0xef), 
+    "ð ñ ò ó ô õ ö ÷ ", //3.2.3  All 8 first bytes of 4-byte sequences (0xf0-0xf7),   
+    "ø ù ú û ",  //3.2.4  All 4 first bytes of 5-byte sequences (0xf8-0xfb),  
+    "ü ý ", //All 2 first bytes of 6-byte sequences (0xfc-0xfd), 
+
+        //3.3  Sequences with last continuation byte missing    
+
+    "À",
+    "à€",
+    "ð€€",
+    "ø€€€",
+    "ü€€€€",
+    "ß",
+    "ï¿",
+    "÷¿¿",
+    "û¿¿¿",
+    "ý¿¿¿¿",
+
+        //3.4  Concatenation of incomplete sequences
+
+    "Àà€ð€€ø€€€ü€€€€ßï¿÷¿¿û¿¿¿ý¿¿¿¿",
+
+        //3.5  Impossible bytes 
+
+    "þ",
+    "ÿ",
+    "þþÿÿ",
+
+        //Overlong ascii character
+
+    "À¯",
+    "à€¯",
+    "ð€€¯",
+    "ø€€€¯",
+    "ü€€€€¯",
+
+        //4.2  Maximum overlong sequences
+
+
+    "Á¿",
+    "àŸ¿",
+    "ð\x8f¿¿",
+    "ø‡¿¿¿",
+    "üƒ¿¿¿¿",  
+
+        //4.3  Overlong representation of the NUL character    
+
+    "À€",
+    "à€€",
+    "ð€€€",
+    "ø€€€€",
+    "ü€€€€€",
+
+        //5.1 Single UTF-16 surrogates 
+
+    "í\xa0€",
+    "í­¿",
+    "í®€",
+    "í¯¿",
+    "í°€",
+    "í¾€",
+    "í¿¿",
+
+        //5.2 Paired UTF-16 surrogates
+
+    "í\xa0€í°€",
+    "í\xa0€í¿¿",
+    "í­¿í°€",
+    "í­¿í¿¿",
+    "í®€í°€",
+    "í®€í¿¿",
+    "í¯¿í°€",
+    "í¯¿í¿¿",
+
+        //5.3 Other illegal code positions
+
+    "ï¿¾",
+    "ï¿¿",
+
+];
+
+var map = {
+    0x20AC: 128
+    ,0x201A: 130 
+    ,0x0192: 131 
+    ,0x201E: 132 
+    ,0x2026: 133 
+    ,0x2020: 134 
+    ,0x2021: 135 
+    ,0x02C6: 136 
+    ,0x2030: 137 
+    ,0x0160: 138
+    ,0x2039: 139
+    ,0x0152: 140
+    ,0x017D: 142
+    ,0x2018: 145
+    ,0x2019: 146
+    ,0x201C: 147
+    ,0x201D: 148
+    ,0x2022: 149
+    ,0x2013: 150
+    ,0x2014: 151
+    ,0x02DC: 152
+    ,0x2122: 153
+    ,0x0161: 154
+    ,0x203A: 155
+    ,0x0153: 156
+    ,0x017E: 158
+    ,0x0178: 159
+};
+
+tests = tests.map( function(v){
+    return v.split("").map( function( ch){
+        var code = ch.charCodeAt(0);
+        if( map[code] ) {
+            return String.fromCharCode(map[code]);
+        }
+        return ch;
+    }).join("");
+});
+
+tests.forEach( function(str, i) {
+    var result = unicode.fromUTF8( str );
+    var hexes = result.split("").map( function(v){
+        return "0x"+v.charCodeAt(0).toString(16);
+    }).join(", ");
+    console.log( i+1 + " " +  "." + " "+ result +" " + "|    |" + " "+ hexes+ " " + result.length + "\n" );
+
+});
+
+</script>
 </body>
 </html>
+

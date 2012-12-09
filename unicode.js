@@ -174,6 +174,17 @@ Korean <-- multi-byte
     }
     
     make8BitCharset( ascii.concat([
+        0x00C7,0x00FC,0x00E9,0x00E2,0x00E4,0x00E0,0x0105,0x00E7,0x00EA,0x00EB,0x00E8,0x00EF,0x00EE,0x0107,0x00C4,0x0104
+        ,0x0118,0x0119,0x0142,0x00F4,0x00F6,0x0106,0x00FB,0x00F9,0x015A,0x00D6,0x00DC,0x00A2,0x0141,0x00A5,0x015B,0x0192
+        ,0x0179,0x017B,0x00F3,0x00D3,0x0144,0x0143,0x017A,0x017C,0x00BF,0x2310,0x00AC,0x00BD,0x00BC,0x00A1,0x00AB,0x00BB
+        ,0x2591,0x2592,0x2593,0x2502,0x2524,0x2561,0x2562,0x2556,0x2555,0x2563,0x2551,0x2557,0x255D,0x255C,0x255B,0x2510
+        ,0x2514,0x2534,0x252C,0x251C,0x2500,0x253C,0x255E,0x255F,0x255A,0x2554,0x2569,0x2566,0x2560,0x2550,0x256C,0x2567
+        ,0x2568,0x2564,0x2565,0x2559,0x2558,0x2552,0x2553,0x256B,0x256A,0x2518,0x250C,0x2588,0x2584,0x258C,0x2590,0x2580
+        ,0x03B1,0x00DF,0x0393,0x03C0,0x03A3,0x03C3,0x00B5,0x03C4,0x03A6,0x0398,0x03A9,0x03B4,0x221E,0x03C6,0x03B5,0x2229
+        ,0x2261,0x00B1,0x2265,0x2264,0x2320,0x2321,0x00F7,0x2248,0x00B0,0x2219,0x00B7,0x221A,0x207F,0x00B2,0x25A0,0x00A0
+    ]), "Mazovia", "Mazovia");
+    
+    make8BitCharset( ascii.concat([
         0x20AC,0xFFFD,0x201A,0x0192,0x201E,0x2026,0x2020,0x2021,0x02C6,0x2030,0xFFFD,0x2039,0x0152,0xFFFD,0xFFFD,0xFFFD
         ,0xFFFD,0x2018,0x2019,0x201C,0x201D,0x2022,0x2013,0x2014,0x02DC,0x2122,0xFFFD,0x203A,0x0153,0xFFFD,0xFFFD,0x0178
         ,0x00A0,0x00A1,0x00A2,0x00A3,0x00A4,0x00A5,0x00A6,0x00A7,0x00A8,0x00A9,0x00AA,0x00AB,0x00AC,0x00AD,0x00AE,0x00AF
@@ -669,52 +680,91 @@ Korean <-- multi-byte
     };
 
     unicode.fromUTF8 = function( str ) {
-        //Decode unicode code points from utf8 encoded string
+        //Decode unicode code points from utf8 encoded binarystring
         var codePoints = [],
+            ch2, ch3, ch4,
             i = 0, byte, codePoint;
 
         while( !isNaN( byte = str.charCodeAt(i++) ) ) {
             if( (byte & 0xF8) === 0xF0 ) {
                 codePoint = ((byte & 0x7) << 18) |
-                            ((str.charCodeAt(i++) & 0x3F) << 12) |
-                            ((str.charCodeAt(i++) & 0x3F) << 6) |
-                            (str.charCodeAt(i++) & 0x3F);
+                            (((ch2 = str.charCodeAt(i++)) & 0x3F) << 12) |
+                            (((ch3 = str.charCodeAt(i++)) & 0x3F) << 6) |
+                            ((ch4 = str.charCodeAt(i++)) & 0x3F);
                             
                 if( !( 0xFFFF < codePoint && codePoint <= 0x1FFFFF ) ) {
+                    //Overlong sequence
                     codePoint = 0xFFFD;
                 }
-                codePoints.push(codePoint);
+                else if( 
+                    ( ch2 & 0xC0 ) !== 0x80 || //must be 10xxxxxx
+                    ( ch3 & 0xC0 ) !== 0x80 || //must be 10xxxxxx
+                    ( ch4 & 0xC0 ) !== 0x80 //must be 10xxxxxx
+               ) {
+                    codePoint = 0xFFFD;
+               }
+               
+               if( codePoint === 0xFFFD ) {
+                   i -= 3; //Backtrack
+               }
             }
             else if( (byte & 0xF0) === 0xE0 ) {
                 codePoint = ((byte & 0xF) << 12) |
-                        ((str.charCodeAt(i++) & 0x3F) << 6 ) |
-                        (str.charCodeAt(i++) & 0x3F);
+                        ((( ch2 = str.charCodeAt(i++)) & 0x3F) << 6 ) |
+                        (( ch3 = str.charCodeAt(i++)) & 0x3F);
                 if( !( 0x7FF < codePoint && codePoint <= 0xFFFF ) ) {
+                    //Overlong sequence
                     codePoint = 0xFFFD;
                 }
-                codePoints.push(codePoint);
+                else if( 
+                    ( ch2 & 0xC0 ) !== 0x80 || //must be 10xxxxxx
+                    ( ch3 & 0xC0 ) !== 0x80 //must be 10xxxxxx
+               ) {
+                    codePoint = 0xFFFD;
+               }
+               
+               if( codePoint === 0xFFFD ) {
+                   i -= 2; //Backtrack
+               }
             }
             else if( (byte & 0xE0) === 0xC0 ) {
                 codePoint = ((byte & 0x1F) << 6) |
-                            ( (str.charCodeAt(i++) & 0x3F) );
+                            ( (( ch2 = str.charCodeAt(i++)) & 0x3F) );
                 if( !( 0x7F < codePoint && codePoint <= 0x7FF ) ) {
+                    //Overlong sequence
                     codePoint = 0xFFFD;
                 }
-                codePoints.push(codePoint);
+                else if( 
+                    ( ch2 & 0xC0 ) !== 0x80 //must be 10xxxxxx
+               ) {
+                    codePoint = 0xFFFD;
+               }
+               
+              if( codePoint === 0xFFFD ) {
+                  i--; //Backtrack
+               }
             }
-            else if( (byte & 0x80) === 0x00 ) {
-                codePoints.push( byte & 0x7F );
+            else if( (byte & 0x80) === 0x00 ) { //must be 0xxxxxxx
+                codePoint = ( byte & 0x7F );
             }
             else {
-                codePoints.push( 0xFFFD );
+                codePoint = 0xFFFD;
             }
+                //Surrogate code point or non-character
+            if( 0xD800 <= codePoint && codePoint <= 0xDFFF ||
+                codePoint === 0xFFFE ||
+                codePoint === 0xFFFF ) {
+                codePoint = 0xFFFD;
+            }
+            
+            codePoints.push( codePoint );
 
         }    
         return unicode.from.apply( String, codePoints );
     };
 
 
-    unicode.toUTF32 = function( str ) {
+    unicode.toUTF32LE = function( str ) {
         var i = 0, 
             codePoint,
             ret = [];
@@ -736,9 +786,47 @@ Korean <-- multi-byte
 
         return ret.join("");
     };
+    
+    unicode.toUTF16LE = function( str ) {
+        var i = 0, 
+            codePoint,
+            ret = [];
 
-    unicode.fromUTF32 = function( str ) {
-        //Decode unicode code points from utf32 encoded string
+        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
+
+            if( codePoint < 0 ) {
+                continue;
+            }
+            else {
+                ret.push( String.fromCharCode(
+                    (codePoint & 0xFF00) >>> 8,
+                    (codePoint & 0xFF)
+                ));
+            }
+        }
+
+        return ret.join("");    
+    }
+
+    unicode.fromUTF16LE = function( str ) {
+        var codePoints = [],
+            i = 0, byte, len = str.length;
+
+        if( len % 2 !== 0 ) {
+            throw new TypeError( "invalid utf16" );  
+        }
+
+        for( i = 0; i < len; i += 2 ) {
+            codePoints.push(
+                ((str.charCodeAt(i) & 0xFF) << 8  )  |
+                (str.charCodeAt(i+1) & 0xFF)
+            );
+        }
+
+        return unicode.from.apply( String, codePoints ); 
+    }
+
+    unicode.fromUTF32LE = function( str ) {
         var codePoints = [],
             i = 0, byte, len = str.length;
 
@@ -756,6 +844,95 @@ Korean <-- multi-byte
         }
 
         return unicode.from.apply( String, codePoints );
+    };
+
+    unicode.toUTF32BE = function( str ) {
+        var i = 0, 
+            codePoint,
+            ret = [];
+
+        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
+
+            if( codePoint < 0 ) {
+                continue;
+            }
+            else {
+                ret.push( String.fromCharCode(
+                    (codePoint & 0xFF),
+                    (codePoint & 0xFF00) >>> 8,
+                    (codePoint & 0xFF0000) >>> 16,
+                    (codePoint & 0xFF000000) >>> 24
+                ));
+            }
+        }
+
+        return ret.join("");
+    };
+    
+    unicode.toUTF16BE = function( str ) {
+        var i = 0, 
+            codePoint,
+            ret = [];
+
+        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
+
+            if( codePoint < 0 ) {
+                continue;
+            }
+            else {
+                ret.push( String.fromCharCode(
+                    (codePoint & 0xFF),
+                    (codePoint & 0xFF00) >>> 8
+                    
+                ));
+            }
+        }
+
+        return ret.join("");    
+    }
+
+    unicode.fromUTF16BE = function( str ) {
+        var codePoints = [],
+            i = 0, byte, len = str.length;
+
+        if( len % 2 !== 0 ) {
+            throw new TypeError( "invalid utf16" );  
+        }
+
+        for( i = 0; i < len; i += 2 ) {
+            codePoints.push(
+                (str.charCodeAt(i+1) & 0xFF) |
+                ((str.charCodeAt(i) & 0xFF) << 8  )
+                
+            );
+        }
+
+        return unicode.from.apply( String, codePoints ); 
+    }
+
+    unicode.fromUTF32BE = function( str ) {
+        var codePoints = [],
+            i = 0, byte, len = str.length;
+
+        if( len % 4 !== 0 ) {
+            throw new TypeError( "invalid utf32" );  
+        }
+
+        for( i = 0; i < len; i += 4 ) {
+            codePoints.push(
+                (str.charCodeAt(i+3) & 0xFF) |
+                ((str.charCodeAt(i+2) & 0xFF) << 8  )  |
+                ((str.charCodeAt(i+1) & 0xFF)  << 16 )  |
+                ((str.charCodeAt(i) & 0xFF)   << 24 ) 
+
+            );
+        }
+
+        return unicode.from.apply( String, codePoints );
+    };
+  
+    unicode.reinterpret = function( from, to, str ) {
+        return unicode["from"+from](unicode["to"+to](str));
     };
 
     (function(){
