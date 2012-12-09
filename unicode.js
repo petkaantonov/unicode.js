@@ -262,7 +262,9 @@ Korean <-- multi-byte
                     ret = [];
 
                 loop: while( !isNaN( codePoint = unicode.at( str, i++) ) ) {
-
+                    if( codePoint < 0 ) {
+                        continue;
+                    }
                     code = +unicodeMap[codePoint];
 
                     if( isNaN( code ) || codePoint === 0xFFFD ) {
@@ -1323,13 +1325,13 @@ Korean <-- multi-byte
             return "%" + (str.length < 2 ? "0" + str : str).toUpperCase(); 
         }
 
-        unicode.uriEncode = function(str) {
+        unicode.uriEncode = function(str, fallback) {
             var ret = [],
                 i = 0,
                 code,
                 len = str.length;
                 
-            str = unicode.toUTF8(str);
+            str = unicode.toUTF8(str, fallback);
             
             while( !isNaN( code = str.charCodeAt(i++) ) ) {
                 if(
@@ -1350,8 +1352,8 @@ Korean <-- multi-byte
             return ret.join("");
         };
 
-        unicode.uriDecode = function(str) {
-            return unicode.fromUTF8(str.replace(rpercent, replacer));
+        unicode.uriDecode = function(str, fallback) {
+            return unicode.fromUTF8(str.replace(rpercent, replacer), fallback);
         };
 
     })();
