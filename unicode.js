@@ -40,6 +40,8 @@ Korean <-- multi-byte
 ;(function(global, String) {
 "use strict";
 
+    
+
     var ascii = [
         0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F
         ,0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,0x0018,0x0019,0x001A,0x001B,0x001C,0x001D,0x001E,0x001F
@@ -50,12 +52,53 @@ Korean <-- multi-byte
         ,0x0060,0x0061,0x0062,0x0063,0x0064,0x0065,0x0066,0x0067,0x0068,0x0069,0x006A,0x006B,0x006C,0x006D,0x006E,0x006F
         ,0x0070,0x0071,0x0072,0x0073,0x0074,0x0075,0x0076,0x0077,0x0078,0x0079,0x007A,0x007B,0x007C,0x007D,0x007E,0x007F
     ];
+    
+    var rHasBeyondBinary = /[^\x00-\xFF]/;
+    
+    function checkBinary( str ) {
+        if( rHasBeyondBinary.test( str ) ) {
+            throw new TypeError( "String is not in binary form" );
+        }
+    }
 
     var unicode = {};
     
-    unicode.REPLACEMENT_FALLBACK = 1;
-    unicode.IGNORE_FALLBACK = 2;
-    unicode.ERROR_FALLBACK = 3;
+    var LITTLE_ENDIAN = unicode.LITTLE_ENDIAN = 1;
+    var BIG_ENDIAN = unicode.BIG_ENDIAN = 2;
+    
+    var REPLACEMENT_FALLBACK = unicode.REPLACEMENT_FALLBACK = 1;
+    var IGNORE_FALLBACK = unicode.IGNORE_FALLBACK = 2;
+    var ERROR_FALLBACK = unicode.ERROR_FALLBACK = 3;
+
+    var UTF32BEBOM = unicode.UTF32BEBOM = "\x00\x00\xFE\xFF";
+    var UTF32LEBOM = unicode.UTF32LEBOM = "\xFF\xFE\x00\x00";
+    var UTF16BEBOM = unicode.UTF16BEBOM = "\xFE\xFF";
+    var UTF16LEBOM = unicode.UTF16LEBOM = "\xFF\xFE";
+    var UTF8BOM = unicode.UTF8BOM = "\xEF\xBB\xBF";
+    
+    var MACHINE_ENDIANESS;
+    
+    (function() {
+        try {
+            var a = new Uint16Array(1),
+                b;
+                
+            a[0] = 0xFF00;
+            b = new Uint8Array(a.buffer);
+            if( b[0] === 0 ) {
+                MACHINE_ENDIANESS = LITTLE_ENDIAN;
+            }
+            else {
+                MACHINE_ENDIANESS = BIG_ENDIAN;
+            }
+        }
+        catch(e) {
+            MACHINE_ENDIANESS = LITTLE_ENDIAN;
+        }
+    
+    })();
+    
+    unicode.MACHINE_ENDIANESS = MACHINE_ENDIANESS;
 
     unicode.from = function( fromCharCode ) {
  
@@ -156,7 +199,7 @@ Korean <-- multi-byte
             };
 
             unicode["from" + propName] = function( str ) {
-                //Decode unicode code points from KOI8-R encoded string
+                checkBinary(str);
                 var codePoints = [],
                     i = 0, byte, len = str.length;
 
@@ -638,7 +681,40 @@ Korean <-- multi-byte
         ,0x00E0,0x00E1,0x00E2,0x0103,0x00E4,0x0107,0x00E6,0x00E7,0x00E8,0x00E9,0x00EA,0x00EB,0x00EC,0x00ED,0x00EE,0x00EF
         ,0x0111,0x0144,0x00F2,0x00F3,0x00F4,0x0151,0x00F6,0x015B,0x0171,0x00F9,0x00FA,0x00FB,0x00FC,0x0119,0x021B,0x00FF
     ], "ISO885916", "ISO-8859-16", "Latin10", "SouthEasternEuropean" );
-     
+    
+    function checkDecodedCodePoint( codePoint, codePoints, fallback ) {
+        if( isNaN( codePoint ) ) {
+            codePoint = 0xFFFD;
+        }
+        else {
+            codePoint >>>= 0; //prevent sign extension
+            //Surrogate code point, non-character or too high codepoint
+            if( (0xD800 <= codePoint && codePoint <= 0xDFFF) ||
+                codePoint === 0xFFFE ||
+                codePoint === 0xFFFF ||
+                codePoint > 0x10FFFF ) {
+                codePoint = 0xFFFD;
+            }
+            else if( codePoint === 0xFEFF ) {
+                codePoint = 0x2060; //Convert Boms in middle of text to WORD JOINER
+            }
+        }
+
+        if( codePoint === 0xFFFD ) {
+            if( fallback === unicode.REPLACEMENT_FALLBACK ) {
+                codePoints.push( codePoint );
+            }
+            else if( fallback === unicode.ERROR_FALLBACK ) {
+                throw new TypeError( "Decoding error: invalid sequence");
+            }
+            else if( fallback === unicode.IGNORE_FALLBACK ) {
+                return;
+            }
+        }
+        else {
+            codePoints.push( codePoint );
+        }
+    }
 
     unicode.toUTF8 = function( str ) {
 
@@ -691,6 +767,7 @@ Korean <-- multi-byte
     
 
     unicode.fromUTF8 = function( str, fallback ) {
+        checkBinary(str);
         switch( fallback ) {
             case unicode.REPLACEMENT_FALLBACK:
             case unicode.ERROR_FALLBACK:
@@ -747,6 +824,10 @@ Korean <-- multi-byte
                if( codePoint === 0xFFFD ) {
                    i -= 2; //Backtrack
                }
+                            //Ignore initial bom
+               if( codePoint === 0xFEFF && i === 3) {
+                   continue;
+               }
             }
             else if( (byte & 0xE0) === 0xC0 ) {
                 codePoint = ((byte & 0x1F) << 6) |
@@ -771,200 +852,351 @@ Korean <-- multi-byte
             else {
                 codePoint = 0xFFFD;
             }
-                //Surrogate code point, non-character or too high codepoint
-            if( 0xD800 <= codePoint && codePoint <= 0xDFFF ||
-                codePoint === 0xFFFE ||
-                codePoint === 0xFFFF ||
-                codePoint > 0x10FFFF ) {
-                codePoint = 0xFFFD;
-            }
-            
-            if( codePoint === 0xFFFD ) {
-                if( fallback === unicode.REPLACEMENT_FALLBACK ) {
-                    codePoints.push( codePoint );
-                }
-                else if( fallback === unicode.ERROR_FALLBACK ) {
-                    throw new TypeError( "Invalid UTF-8 sequence");
-                }
-                else if( fallback === unicode.IGNORE_FALLBACK ) {
-                    continue;
-                }
-            }
-            else {
-                codePoints.push( codePoint );
-            }
+            checkDecodedCodePoint( codePoint, codePoints, fallback );
 
         }    
         return unicode.from.apply( String, codePoints );
     };
 
-    unicode.UTF8BOM = unicode.toUTF8("\ufeff");
-
-    unicode.toUTF32LE = function( str ) {
+    unicode.toUTF16 = function( str, endianess ) {
+        var bom = "";
+        switch( endianess ) {
+            //Endianess explicitly given from BE and LE methods
+            case LITTLE_ENDIAN:
+            case BIG_ENDIAN:
+                break;
+            default:
+                endianess = MACHINE_ENDIANESS;
+                if( endianess === BIG_ENDIAN ) {
+                    bom = UTF16BEBOM;
+                }
+                else {
+                    bom = UTF16LEBOM;
+                }
+        }
+        
         var i = 0, 
             codePoint,
+            ch,
+            low, high,
             ret = [];
 
-        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
+        while( !isNaN( codePoint = unicode.at( str, i++ ) ) ) {
 
-            if( codePoint < 0 ) {
+            if( codePoint < 0 ) { //-1 signals low surrogate, that we got a surrogate pair on last iteration.
                 continue;
             }
-            else {
-                ret.push( String.fromCharCode(
-                    (codePoint & 0xFF000000) >>> 24,
-                    (codePoint & 0xFF0000) >>> 16,
-                    (codePoint & 0xFF00) >>> 8,
-                    (codePoint & 0xFF)
-                ));
-            }
-        }
-
-        return ret.join("");
-    };
-    
-    unicode.toUTF16LE = function( str ) {
-        var i = 0, 
-            codePoint,
-            ret = [];
-
-        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
-
-            if( codePoint < 0 ) {
+            else if( codePoint === 0xFFFD || //Don't encode replacement characters, non characters or invalid codepoints
+                codePoint === 0xFFFE ||
+                codePoint === 0xFFFF ||
+                codePoint > 0x10FFFF
+            ) { 
                 continue;
             }
-            else {
-                ret.push( String.fromCharCode(
-                    (codePoint & 0xFF00) >>> 8,
-                    (codePoint & 0xFF)
-                ));
+            
+            if( codePoint >= 0x10000 ) {
+                codePoint -= 0x10000;
+                high = 0xD800 + ( ( codePoint & 0xFFC00 ) >>> 10 ),
+                low = 0xDC00 + ( codePoint & 0x3FF )
             }
-        }
+            else {
+                low = high = null;
+            }
 
-        return ret.join("");    
+            if( endianess === BIG_ENDIAN ) {
+                if( low != null ) {
+                    ch = String.fromCharCode(
+                        (high >>> 8) & 0xFF,
+                        (high & 0xFF),
+                        (low >>> 8) & 0xFF,
+                        (low & 0xFF)
+                    );
+                }
+                else {
+                    ch = String.fromCharCode(
+                        (codePoint >>> 8) & 0xFF,
+                        (codePoint & 0xFF)                        
+                    );
+                }
+            }
+            else {
+                if( low != null ) {
+                    ch = String.fromCharCode(
+                        (high & 0xFF),
+                        (high >>> 8) & 0xFF,
+                        (low & 0xFF),
+                        (low >>> 8) & 0xFF
+                        
+                    );
+                }
+                else {
+                    ch = String.fromCharCode(
+                        (codePoint & 0xFF),
+                        (codePoint >>> 8) & 0xFF                 
+                    );
+                }         
+            }
+            ret.push(ch);
+        }
+        
+        return bom + ret.join("");
     }
 
-    unicode.fromUTF16LE = function( str ) {
-        var codePoints = [],
-            i = 0, byte, len = str.length;
+    unicode.toUTF16LE = function( str ) {
+        return unicode.toUTF16( str, LITTLE_ENDIAN );
+    };
 
-        if( len % 2 !== 0 ) {
-            throw new TypeError( "invalid utf16" );  
+    unicode.toUTF16BE = function( str ) {
+        return unicode.toUTF16( str, BIG_ENDIAN );
+    };
+
+    unicode.fromUTF16 = function( str, fallback, endianess ) {
+        checkBinary(str);
+        var i = 0,
+            len = str.length;
+
+        switch( fallback ) {
+            case REPLACEMENT_FALLBACK:
+            case ERROR_FALLBACK:
+            case IGNORE_FALLBACK:
+                break;
+            default:
+                fallback = REPLACEMENT_FALLBACK;
         }
-
-        for( i = 0; i < len; i += 2 ) {
-            codePoints.push(
-                ((str.charCodeAt(i) & 0xFF) << 8  )  |
-                (str.charCodeAt(i+1) & 0xFF)
-            );
+        switch( endianess ) {
+            //Endianess explicitly given from BE and LE methods
+            case LITTLE_ENDIAN:
+            case BIG_ENDIAN:
+                break;
+            default:
+                if( len >= 2 ) {
+                    var bom = (str.charCodeAt(0) << 8) |
+                              str.charCodeAt(1);
+                    if( bom === 0xFFFE ) {
+                        endianess = LITTLE_ENDIAN;
+                        i = 2; //Skip bom
+                    }
+                    else if( bom === 0xFEFF ) {
+                        endianess = BIG_ENDIAN;
+                        i = 2; //Skip bom
+                    }
+                    else {
+                        //UTF-16 without BOM is illegal but BIG ENDIAN is then used
+                        endianess = BIG_ENDIAN;
+                    }
+                }
+                else {
+                    //UTF-16 without BOM is illegal but BIG ENDIAN is then used
+                    endianess = BIG_ENDIAN;
+                }
+            
+        }
+        
+        var codePoints = [],
+            codePoint,
+            low, high,
+            byte;
+        
+        if( endianess === BIG_ENDIAN ) {
+            for( ; i < len; i+=2 ) {
+                codePoint = (str.charCodeAt(i) << 8) |
+                            str.charCodeAt(i+1);
+                
+                //Lead surrogate 0xD800..0xDBFF
+                if( 0xD800 <= codePoint && codePoint <= 0xDBFF ) {
+                    high = codePoint;
+                    //peek low surrogate
+                    low = (str.charCodeAt(i+2) << 8) |
+                            str.charCodeAt(i+3);
+                            //Trail surrogate 0xDC00..0xDFFF
+                    if( 0xDC00 <= low && low <= 0xDFFF ) {
+                        i+=2; //Valid surrogate pair so ignore the upcoming low
+                        codePoint = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000;
+                    }
+                    //checkDecodedCodePoint will handle the invalid high
+                }
+                //checkDecodedCodePoint will handle invalid low
+                checkDecodedCodePoint( codePoint, codePoints, fallback );
+            }        
+        }
+        else {
+            for( ; i < len; i+=2 ) {
+                codePoint = str.charCodeAt(i) |
+                            (str.charCodeAt(i+1) << 8 );
+                //Lead surrogate 0xD800..0xDBFF
+                if( 0xD800 <= codePoint && codePoint <= 0xDBFF ) {
+                    high = codePoint;
+                    //peek low surrogate
+                    low = str.charCodeAt(i+2) |
+                            (str.charCodeAt(i+3) << 8 );
+                            //Trail surrogate 0xDC00..0xDFFF
+                    if( 0xDC00 <= low && low <= 0xDFFF ) {
+                        i+=2; //Valid surrogate pair so ignore the upcoming low
+                        codePoint = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000;
+                    }
+                    //checkDecodedCodePoint will handle the invalid high
+                }
+                //checkDecodedCodePoint will handle invalid low
+                checkDecodedCodePoint( codePoint, codePoints, fallback );
+            }
         }
 
         return unicode.from.apply( String, codePoints ); 
+        
+    };
+
+
+
+    unicode.fromUTF16LE = function( str, fallback ) {
+        return unicode.fromUTF16( str, fallback, LITTLE_ENDIAN );
+    };
+
+    unicode.fromUTF16BE = function( str, fallback ) {
+        return unicode.fromUTF16( str, fallback, BIG_ENDIAN );
+    };
+    
+    unicode.toUTF32 = function( str, endianess ) {
+        var bom = "";
+        switch( endianess ) {
+            //Endianess explicitly given from BE and LE methods
+            case LITTLE_ENDIAN:
+            case BIG_ENDIAN:
+                break;
+            default:
+                endianess = MACHINE_ENDIANESS;
+                if( endianess === BIG_ENDIAN ) {
+                    bom = UTF32BEBOM;
+                }
+                else {
+                    bom = UTF32LEBOM;
+                }
+        }
+        
+        var i = 0, 
+            codePoint,
+            ch,
+            ret = [];
+
+        while( !isNaN( codePoint = unicode.at( str, i++ ) ) ) {
+
+            if( codePoint < 0 ) { //-1 signals low surrogate, that we got a surrogate pair on last iteration.
+                continue;
+            }
+            else if( codePoint === 0xFFFD || //Don't encode replacement characters, non characters or invalid codepoints
+                codePoint === 0xFFFE ||
+                codePoint === 0xFFFF ||
+                codePoint > 0x10FFFF
+            ) { 
+                continue;
+            }
+
+            if( endianess === BIG_ENDIAN ) {
+                ch = String.fromCharCode(
+                    (codePoint >>> 24) & 0xFF,
+                    (codePoint >>> 16) & 0xFF,
+                    (codePoint >>> 8) & 0xFF,
+                    (codePoint & 0xFF)
+                );
+            }
+            else {
+                ch = String.fromCharCode(
+                    (codePoint & 0xFF),
+                    (codePoint >>> 8) & 0xFF,
+                    (codePoint >>> 16) & 0xFF,
+                    (codePoint >>> 24) & 0xFF
+                );            
+            }
+            ret.push(ch);
+        }
+        
+        return bom + ret.join("");
     }
 
-    unicode.fromUTF32LE = function( str ) {
-        var codePoints = [],
-            i = 0, byte, len = str.length;
-
-        if( len % 4 !== 0 ) {
-            throw new TypeError( "invalid utf32" );  
-        }
-
-        for( i = 0; i < len; i += 4 ) {
-            codePoints.push(
-                ((str.charCodeAt(i) & 0xFF)   << 24 )  |
-                ((str.charCodeAt(i+1) & 0xFF)  << 16 )  |
-                ((str.charCodeAt(i+2) & 0xFF) << 8  )  |
-                (str.charCodeAt(i+3) & 0xFF)
-            );
-        }
-
-        return unicode.from.apply( String, codePoints );
+    unicode.toUTF32LE = function( str ) {
+        return unicode.toUTF32( str, LITTLE_ENDIAN );
     };
 
     unicode.toUTF32BE = function( str ) {
-        var i = 0, 
-            codePoint,
-            ret = [];
-
-        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
-
-            if( codePoint < 0 ) {
-                continue;
-            }
-            else {
-                ret.push( String.fromCharCode(
-                    (codePoint & 0xFF),
-                    (codePoint & 0xFF00) >>> 8,
-                    (codePoint & 0xFF0000) >>> 16,
-                    (codePoint & 0xFF000000) >>> 24
-                ));
-            }
-        }
-
-        return ret.join("");
+        return unicode.toUTF32( str, BIG_ENDIAN );
     };
     
-    unicode.toUTF16BE = function( str ) {
-        var i = 0, 
-            codePoint,
-            ret = [];
+    unicode.fromUTF32 = function( str, fallback, endianess ) {
+        checkBinary(str);
+        var i = 0,
+            len = str.length;
 
-        while( !isNaN( codePoint = unicode.at( str,i++) ) ) {
-
-            if( codePoint < 0 ) {
-                continue;
-            }
-            else {
-                ret.push( String.fromCharCode(
-                    (codePoint & 0xFF),
-                    (codePoint & 0xFF00) >>> 8
-                    
-                ));
-            }
+        switch( fallback ) {
+            case REPLACEMENT_FALLBACK:
+            case ERROR_FALLBACK:
+            case IGNORE_FALLBACK:
+                break;
+            default:
+                fallback = REPLACEMENT_FALLBACK;
         }
-
-        return ret.join("");    
-    }
-
-    unicode.fromUTF16BE = function( str ) {
+        switch( endianess ) {
+            //Endianess explicitly given from BE and LE methods
+            case LITTLE_ENDIAN:
+            case BIG_ENDIAN:
+                break;
+            default:
+                if( len >= 4 ) {
+                    var bom = ((str.charCodeAt(0) << 24) |
+                              (str.charCodeAt(1) << 16) |
+                              (str.charCodeAt(2) << 8) |
+                              str.charCodeAt(3)) >>> 0;
+                    if( bom === 0xfffe0000 ) {
+                        endianess = LITTLE_ENDIAN;
+                        i = 4; //Skip bom
+                    }
+                    else if( bom === 0xfeff ) {
+                        endianess = BIG_ENDIAN;
+                        i = 4; //Skip bom
+                    }
+                    else {
+                        //UTF-32 without BOM is illegal but BIG ENDIAN is then used
+                        endianess = BIG_ENDIAN;
+                    }
+                }
+                else {
+                    //UTF-32 without BOM is illegal but BIG ENDIAN is then used
+                    endianess = BIG_ENDIAN;
+                }
+            
+        }
+        
         var codePoints = [],
-            i = 0, byte, len = str.length;
-
-        if( len % 2 !== 0 ) {
-            throw new TypeError( "invalid utf16" );  
+            codePoint,
+            byte;
+        
+        if( endianess === BIG_ENDIAN ) {
+            for( ; i < len; i+=4 ) {
+                codePoint = (str.charCodeAt(i) << 24) |
+                            (str.charCodeAt(i+1) << 16) |
+                            (str.charCodeAt(i+2) << 8) |
+                            str.charCodeAt(i+3);
+                checkDecodedCodePoint( codePoint, codePoints, fallback );
+            }        
         }
-
-        for( i = 0; i < len; i += 2 ) {
-            codePoints.push(
-                (str.charCodeAt(i+1) & 0xFF) |
-                ((str.charCodeAt(i) & 0xFF) << 8  )
-                
-            );
+        else {
+            for( ; i < len; i+=4 ) {
+                codePoint = str.charCodeAt(i) |
+                            (str.charCodeAt(i+1) << 8) |
+                            (str.charCodeAt(i+2) << 16) |
+                            (str.charCodeAt(i+3) << 24);
+                checkDecodedCodePoint( codePoint, codePoints, fallback );
+            }
         }
 
         return unicode.from.apply( String, codePoints ); 
-    }
+        
+    };
 
-    unicode.fromUTF32BE = function( str ) {
-        var codePoints = [],
-            i = 0, byte, len = str.length;
+    unicode.fromUTF32LE = function( str, fallback ) {
+        return unicode.fromUTF32( str, fallback, LITTLE_ENDIAN );
+    };
 
-        if( len % 4 !== 0 ) {
-            throw new TypeError( "invalid utf32" );  
-        }
-
-        for( i = 0; i < len; i += 4 ) {
-            codePoints.push(
-                (str.charCodeAt(i+3) & 0xFF) |
-                ((str.charCodeAt(i+2) & 0xFF) << 8  )  |
-                ((str.charCodeAt(i+1) & 0xFF)  << 16 )  |
-                ((str.charCodeAt(i) & 0xFF)   << 24 ) 
-
-            );
-        }
-
-        return unicode.from.apply( String, codePoints );
+    unicode.fromUTF32BE = function( str, fallback ) {
+        return unicode.fromUTF32( str, fallback, BIG_ENDIAN );
     };
   
     unicode.reinterpret = function( from, to, str ) {
