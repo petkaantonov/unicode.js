@@ -1217,41 +1217,30 @@ Korean <-- multi-byte
 
     (function(){
 
-        var ByteArray = global.Uint8Array || global.Array,
+        var ByteArray,
             toArray = [].slice;
+            
+        try {
+            ByteArray = Uint8Array;
+        }
+        catch(e) {
+            ByteArray = [].constructor;
+        }
 
         unicode.toByteArray = function (str) {
-
-            var tmp = [],
-                i = 0, 
-                bytes,
-                len,
-                byteArr;
-
-            while( !isNaN( bytes = str.charCodeAt(i++) ) ) {
-
-                if( bytes > 0xFF ) {
-                    tmp.push(
-                        ((bytes & 0xFF00) >>> 8),
-                        bytes & 0xFF
-                    );
-                }
-                else {
-                    tmp.push( bytes & 0xFF );
-                }
-            }
-            len = tmp.length;
-            byteArr = new ByteArray(len);
+            checkBinary(str);
+            var i,
+                len = str.length,
+                byteArr = new ByteArray(len);
 
             for( i = 0; i < len; ++i ) {
-                byteArr[i] = tmp[i];
+                byteArr[i] = str.charCodeAt(i);
             }
 
             return byteArr;
         };
 
         unicode.fromByteArray = function( arr ) {
-           arr = toArray.call( arr );
            return String.fromCharCode.apply( String, arr );
         };
 
