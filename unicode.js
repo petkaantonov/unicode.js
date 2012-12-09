@@ -40,6 +40,50 @@ Korean <-- multi-byte
 ;(function(global, String) {
 "use strict";
 
+    var objCreate = Object.create || function( f ) {
+        function Type() {}
+        Type.prototype = f;
+        return new Type();
+    };
+    
+    function err(message, fileName, lineNumber) {
+        var err = new Error();
+
+        if (err.stack) {
+            // remove one stack level:
+            if (typeof(Components) != 'undefined') {
+                // Mozilla:
+                this.stack = err.stack.substring(err.stack.indexOf('\n')+1);
+            }
+            else if (typeof(chrome) != 'undefined' || typeof(process) != 'undefined') {
+                // Google Chrome/Node.js:
+                this.stack = err.stack.replace(/\n[^\n]*/,'');
+            }
+            else {
+                this.stack = err.stack;
+            }
+        }
+        this.message    = message    === undefined ? err.message    : message;
+        this.fileName   = fileName   === undefined ? err.fileName   : fileName;
+        this.lineNumber = lineNumber === undefined ? err.lineNumber : lineNumber;
+    }
+
+    function EncoderError() {
+        err.apply( this, arguments );
+    }
+    
+    EncoderError.prototype = objCreate(Error.prototype);
+    EncoderError.constructor = EncoderError;
+    EncoderError.prototype.name = "EncoderError";
+    
+
+    function DecoderError() {
+        err.apply( this, arguments );
+    }
+    
+    DecoderError.prototype = objCreate(Error.prototype);
+    DecoderError.constructor = DecoderError;
+    DecoderError.prototype.name = "DecoderError";
     
 
     var ascii = [
@@ -57,9 +101,11 @@ Korean <-- multi-byte
     
     function checkBinary( str ) {
         if( rHasBeyondBinary.test( str ) ) {
-            throw new TypeError( "String is not in binary form" );
+            throw new DecoderError( "String is not in binary form" );
         }
     }
+    
+    
     
     function checkFallback( fallback ) {
         switch( fallback ) {
@@ -68,7 +114,7 @@ Korean <-- multi-byte
             case IGNORE_FALLBACK:
                 break;
             default:
-                fallback = REPLACEMENT_FALLBACK;
+                fallback = _fallback;
         }
         return fallback;
     }
@@ -89,6 +135,24 @@ Korean <-- multi-byte
     var UTF8BOM = unicode.UTF8BOM = "\xEF\xBB\xBF";
     
     var MACHINE_ENDIANESS;
+    var _fallback = REPLACEMENT_FALLBACK;
+    
+    unicode.fallback = function( fallback ) {
+        if( arguments.length < 1 ) {
+            return _fallback;
+        }
+        else {
+            switch( fallback ) {
+                case REPLACEMENT_FALLBACK:
+                case ERROR_FALLBACK:
+                case IGNORE_FALLBACK:
+                    _fallback = fallback;
+                    break;
+                default:
+                    throw new TypeError( "Invalid fallback type" );
+            }
+        }
+    };
     
     (function() {
         try {
@@ -204,7 +268,7 @@ Korean <-- multi-byte
                     if( isNaN( code ) || codePoint === 0xFFFD ) {
                         switch( fallback ) {
                             case ERROR_FALLBACK:
-                                throw new TypeError( "Encoding error: character cannot be represented in target encoding");
+                                throw new EncoderError( "Character cannot be represented in target encoding");
                                 break;
                             case IGNORE_FALLBACK:
                                 continue loop;
@@ -738,7 +802,7 @@ Korean <-- multi-byte
                 codePoints.push( codePoint );
             }
             else if( fallback === unicode.ERROR_FALLBACK ) {
-                throw new TypeError( "Decoding error: invalid sequence");
+                throw new DecoderError( "Invalid byte sequence");
             }
             else if( fallback === unicode.IGNORE_FALLBACK ) {
                 return;
