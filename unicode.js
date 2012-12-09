@@ -25,7 +25,7 @@ THE SOFTWARE.
 
 
 todo:
-
+Use fallback mechanism when encoding to UTFs as well
 GBK <-- multi-byte,
 gb18030 <-- multi-byte,
 big5 <-- multi-byte,
@@ -60,15 +60,27 @@ Korean <-- multi-byte
             throw new TypeError( "String is not in binary form" );
         }
     }
+    
+    function checkFallback( fallback ) {
+        switch( fallback ) {
+            case REPLACEMENT_FALLBACK:
+            case ERROR_FALLBACK:
+            case IGNORE_FALLBACK:
+                break;
+            default:
+                fallback = REPLACEMENT_FALLBACK;
+        }
+        return fallback;
+    }
 
     var unicode = {};
     
     var LITTLE_ENDIAN = unicode.LITTLE_ENDIAN = 1;
     var BIG_ENDIAN = unicode.BIG_ENDIAN = 2;
     
-    var REPLACEMENT_FALLBACK = unicode.REPLACEMENT_FALLBACK = 1;
-    var IGNORE_FALLBACK = unicode.IGNORE_FALLBACK = 2;
-    var ERROR_FALLBACK = unicode.ERROR_FALLBACK = 3;
+    var REPLACEMENT_FALLBACK = unicode.REPLACEMENT_FALLBACK = 3;
+    var IGNORE_FALLBACK = unicode.IGNORE_FALLBACK = 4;
+    var ERROR_FALLBACK = unicode.ERROR_FALLBACK = 5;
 
     var UTF32BEBOM = unicode.UTF32BEBOM = "\x00\x00\xFE\xFF";
     var UTF32LEBOM = unicode.UTF32LEBOM = "\xFF\xFE\x00\x00";
@@ -178,19 +190,29 @@ Korean <-- multi-byte
                 unicodeMap[map[l]] = l;
             }
 
-            unicode["to" + propName] = function( str ) {
-
+            unicode["to" + propName] = function( str, fallback ) {
+                fallback = checkFallback(fallback);
                 var i = 0, 
                     codePoint,
                     code,
                     ret = [];
 
-                while( !isNaN( codePoint = unicode.at( str, i++) ) ) {
+                loop: while( !isNaN( codePoint = unicode.at( str, i++) ) ) {
 
                     code = +unicodeMap[codePoint];
 
                     if( isNaN( code ) || codePoint === 0xFFFD ) {
-                        continue;
+                        switch( fallback ) {
+                            case ERROR_FALLBACK:
+                                throw new TypeError( "Encoding error: character cannot be represented in target encoding");
+                                break;
+                            case IGNORE_FALLBACK:
+                                continue loop;
+                                
+                            case REPLACEMENT_FALLBACK:
+                                code = 0x003f; //"?"
+                                break;
+                        }
                     }
                     ret.push( String.fromCharCode( code ) );
                 }
@@ -198,14 +220,14 @@ Korean <-- multi-byte
                 return ret.join(""); 
             };
 
-            unicode["from" + propName] = function( str ) {
+            unicode["from" + propName] = function( str, fallback ) {
                 checkBinary(str);
+                fallback = checkFallback(fallback);
                 var codePoints = [],
-                    i = 0, byte, len = str.length;
+                    i = 0, len = str.length;
 
-                for( i = 0; i < len; i ++ ) {
-                    var byte = str.charCodeAt(i) & 0xFF;
-                    codePoints.push( map[byte] );
+                for( i = 0; i < len; i++ ) {
+                    checkDecodedCodePoint( map[str.charCodeAt(i)], codePoints, fallback );
                 }
 
                 return unicode.from.apply( String, codePoints );
@@ -219,6 +241,17 @@ Korean <-- multi-byte
                 unicode["from"+aliases[l]] = unicode["from" + propName];
             }
     }
+    
+    make8BitCharset( ascii.concat([
+        0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD,
+        0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD,
+        0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD,
+        0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD,
+        0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD,
+        0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD,
+        0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD,
+        0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD
+    ]), "ASCII", "ASCII", "USASCII");
     
     make8BitCharset( ascii.concat([
         0x00C7,0x00FC,0x00E9,0x00E2,0x00E4,0x00E0,0x0105,0x00E7,0x00EA,0x00EB,0x00E8,0x00EF,0x00EE,0x0107,0x00C4,0x0104
@@ -768,14 +801,7 @@ Korean <-- multi-byte
 
     unicode.fromUTF8 = function( str, fallback ) {
         checkBinary(str);
-        switch( fallback ) {
-            case unicode.REPLACEMENT_FALLBACK:
-            case unicode.ERROR_FALLBACK:
-            case unicode.IGNORE_FALLBACK:
-                break;
-            default:
-                fallback = unicode.REPLACEMENT_FALLBACK;
-        }
+        fallback = checkFallback(fallback);
         //Decode unicode code points from utf8 encoded binarystring
         var codePoints = [],
             ch2, ch3, ch4,
@@ -788,7 +814,7 @@ Korean <-- multi-byte
                             (((ch3 = str.charCodeAt(i++)) & 0x3F) << 6) |
                             ((ch4 = str.charCodeAt(i++)) & 0x3F);
                             
-                if( !( 0xFFFF < codePoint && codePoint <= 0x1FFFFF ) ) {
+                if( !( 0xFFFF < codePoint && codePoint <= 0x10FFFF ) ) {
                     //Overlong sequence
                     codePoint = 0xFFFD;
                 }
@@ -955,14 +981,7 @@ Korean <-- multi-byte
         var i = 0,
             len = str.length;
 
-        switch( fallback ) {
-            case REPLACEMENT_FALLBACK:
-            case ERROR_FALLBACK:
-            case IGNORE_FALLBACK:
-                break;
-            default:
-                fallback = REPLACEMENT_FALLBACK;
-        }
+        fallback = checkFallback(fallback);
         switch( endianess ) {
             //Endianess explicitly given from BE and LE methods
             case LITTLE_ENDIAN:
@@ -1125,14 +1144,7 @@ Korean <-- multi-byte
         var i = 0,
             len = str.length;
 
-        switch( fallback ) {
-            case REPLACEMENT_FALLBACK:
-            case ERROR_FALLBACK:
-            case IGNORE_FALLBACK:
-                break;
-            default:
-                fallback = REPLACEMENT_FALLBACK;
-        }
+        fallback = checkFallback(fallback);
         switch( endianess ) {
             //Endianess explicitly given from BE and LE methods
             case LITTLE_ENDIAN:

@@ -26,7 +26,20 @@ var filelines = file.split("\n").filter( function(v){
 
 filelines.forEach( function( obj, i) {
     console.log( obj.line, unicode.fromUTF8( obj.match));
+});
 
+var codecs = ["UTF8", "UTF16", "UTF16BE", "UTF16LE", "UTF32", "UTF32BE", "UTF32BE"];
+
+var asciiWords = ["askodaksodas", "3041501~2§", "$$4134141341zxc"];
+var bmpWords = ["äöäöä\u1044\u4800\u9500\u3400", "\u2000\u2400\u2323\u50ff", "\u1095\u5093\uabab\u34ab"];
+var astralWords = [unicode.from(0x20000) + unicode.from(0x20020) + unicode.from(0x10040)];
+
+codecs.forEach( function(codec) {
+    [asciiWords,bmpWords,astralWords].forEach( function(words){
+        words.forEach( function( word ) {
+            console.log( unicode["from"+codec](unicode["to"+codec](word)) === word );
+        });
+    });
 });
 
 </script>
