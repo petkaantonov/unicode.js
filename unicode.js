@@ -1326,7 +1326,7 @@ Korean <-- multi-byte
             return "%" + (str.length < 2 ? "0" + str : str).toUpperCase(); 
         }
 
-        unicode.uriEncode = function(str, fallback) {
+        unicode.toUriEncoding = function(str, fallback) {
             var ret = [],
                 i = 0,
                 code,
@@ -1353,7 +1353,7 @@ Korean <-- multi-byte
             return ret.join("");
         };
 
-        unicode.uriDecode = function(str, fallback) {
+        unicode.fromUriEncoding = function(str, fallback) {
             return unicode.fromUTF8(str.replace(rpercent, replacer), fallback);
         };
 
