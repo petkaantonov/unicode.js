@@ -118,6 +118,19 @@ Korean <-- multi-byte
         }
         return fallback;
     }
+    
+    function isCodePoint( code ) {
+        return 0x000 <= code && code < 0xD800 &&
+                0xDFFF < code && code <= 0x10FFFF;
+    }
+    
+    function isHighSurrogate( code ) {
+        return 0xD800 <= code && code <= 0xDBFF;
+    }
+    
+    function isLowSurrogate( code ) {
+        return 0xDC00 <= code && code <= 0xDFFF;
+    }
 
     var unicode = {};
     
@@ -190,8 +203,8 @@ Korean <-- multi-byte
             for( i = 0; i < len; ++i ) {
                 num = +arguments[i];
 
-                if( !isFinite( num ) ) {
-                    continue;
+                if( !isCodePoint( num ) ) {
+                    throw new DecoderError( "Invalid codepoint");
                 }
                 else if( num >= 0x0000 && num <= 0xD7FF ||
                          num >= 0xE000 && num <= 0xFFFF ) {
@@ -215,10 +228,11 @@ Korean <-- multi-byte
     }(String.fromCharCode);
     
     //String.prototype.charCodeAt that works for astral planes
-    //Return -1 for low surrogate
-    //Return 0xFFFD if high surrogate is met and  low surrogate at next index is not valid
-    //Return NaN if if idx is out of bounds
-    //Return code point otherwise
+    //Return -1 for valid low surrogate
+    //Return astral codepoint for valid high surrogate
+    //Return 0xfffd for invalid/unpaired surrogates
+    //Return NaN if index out of bounds
+    //Return BMP codepoint otherwise
     
     //TODO make return values make more sense
     unicode.at = function( charCodeAt ) {
@@ -228,29 +242,38 @@ Korean <-- multi-byte
                 low,
                 high;
 
-            high = code = charCodeAt.call( str, idx );
-
-
             if( idx >= str.length ) {
                 return NaN;
             }
 
-            if( !isFinite( code ) ) {
-                return 0xFFFD;
-            }
-            else if( 0xD800 <= code && code <= 0xDBFF ) {
+            high = code = charCodeAt.call( str, idx );
+
+            if( isHighSurrogate( code ) ) {
+
                 low = charCodeAt.call( str, idx+1 );
 
-                if( !isFinite( low ) ) {
+                if( !isLowSurrogate(low) ) {
                     return 0xFFFD;
                 }
                 return ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000; 
             }
-            else if( 0xDC00 <= code && code <= 0xDFFF ) {
-                return -1;
+            else if( isLowSurrogate(code) ) {
+                if( idx < 1 ) {
+                    return 0xFFFD;
+                }
+                else {
+                    high = charCodeAt.call( str, idx-1 );
+                    if( isHighSurrogate( high ) ) {
+                        return -1;
+                    }
+                    else {
+                        return 0xFFFD;
+                    }
+                }
             }
-
-            return code;
+            else {
+                return code;
+            }
         };
      }( String.prototype.charCodeAt );
 
@@ -278,16 +301,9 @@ Korean <-- multi-byte
                     code = +unicodeMap[codePoint];
 
                     if( isNaN( code ) || codePoint === 0xFFFD ) {
-                        switch( fallback ) {
-                            case ERROR_FALLBACK:
-                                throw new EncoderError( "Character cannot be represented in target encoding");
-                                break;
-                            case IGNORE_FALLBACK:
-                                continue loop;
-                                
-                            case REPLACEMENT_FALLBACK:
-                                code = 0x003f; //"?"
-                                break;
+                        codePoint = getEncoderErrorCodePoint( fallback );
+                        if( codePoint < 0 ) {
+                            continue;
                         }
                     }
                     ret.push( String.fromCharCode( code ) );
@@ -841,9 +857,22 @@ Korean <-- multi-byte
             codePoints.push( codePoint );
         }
     }
+    
+    function getEncoderErrorCodePoint( fallback ) {
+        switch( fallback ) {
+            case ERROR_FALLBACK:
+                throw new EncoderError( "Cannot encode U+" + codePoint.toString(16).toUpperCase() );
 
-    unicode.toUTF8 = function( str ) {
+            case IGNORE_FALLBACK:
+                return -1;
 
+            case REPLACE_FALLBACK:
+                return 0x003F; //"?"
+        }
+    }
+
+    unicode.toUTF8 = function( str, fallback ) {
+        fallback = checkFallback( fallback );
         var i = 0, 
             codePoint,
             ret = [];
@@ -853,10 +882,16 @@ Korean <-- multi-byte
             if( codePoint < 0 ) { //-1 signals low surrogate, that we got a surrogate pair on last iteration.
                 continue;
             }
-            else if( codePoint === 0xFFFD || //Don't encode replacement characters or invalid codepoints
+            else if( codePoint === 0xFFFD ||
                 codePoint > 0x10FFFF
             ) { 
-                continue;
+                codePoint = getEncoderErrorCodePoint( codePoint, fallback );
+                if( codePoint < 0 ) {
+                    continue;
+                }
+                else {
+                    codePoint = 0xFFFD;
+                }
             }
             
             else if( codePoint <= 0x7F ) {
@@ -975,7 +1010,8 @@ Korean <-- multi-byte
         return unicode.from.apply( String, codePoints );
     };
 
-    unicode.toUTF16 = function( str, endianess ) {
+    unicode.toUTF16 = function( str, fallback, endianess ) {
+        fallback = checkFallback( fallback );
         var bom = "";
         switch( endianess ) {
             //Endianess explicitly given from BE and LE methods
@@ -1003,10 +1039,16 @@ Korean <-- multi-byte
             if( codePoint < 0 ) { //-1 signals low surrogate, that we got a surrogate pair on last iteration.
                 continue;
             }
-            else if( codePoint === 0xFFFD || //Don't encode replacement characters, non characters or invalid codepoints
+            else if( codePoint === 0xFFFD ||
                 codePoint > 0x10FFFF
             ) { 
-                continue;
+                codePoint = getEncoderErrorCodePoint( fallback );
+                if( codePoint < 0 ) {
+                    continue;
+                }
+                else {
+                    codePoint = 0xFFFD;
+                }
             }
             
             if( codePoint >= 0x10000 ) {
@@ -1057,12 +1099,12 @@ Korean <-- multi-byte
         return bom + ret.join("");
     }
 
-    unicode.toUTF16LE = function( str ) {
-        return unicode.toUTF16( str, LITTLE_ENDIAN );
+    unicode.toUTF16LE = function( str, fallback ) {
+        return unicode.toUTF16( str, fallback, LITTLE_ENDIAN );
     };
 
-    unicode.toUTF16BE = function( str ) {
-        return unicode.toUTF16( str, BIG_ENDIAN );
+    unicode.toUTF16BE = function( str, fallback ) {
+        return unicode.toUTF16( str, fallback, BIG_ENDIAN );
     };
 
     unicode.fromUTF16 = function( str, fallback, endianess ) {
@@ -1174,7 +1216,8 @@ Korean <-- multi-byte
         return unicode.fromUTF16( str, fallback, BIG_ENDIAN );
     };
     
-    unicode.toUTF32 = function( str, endianess ) {
+    unicode.toUTF32 = function( str, fallback, endianess ) {
+        fallback = checkFallback( fallback );
         var bom = "";
         switch( endianess ) {
             //Endianess explicitly given from BE and LE methods
@@ -1201,10 +1244,16 @@ Korean <-- multi-byte
             if( codePoint < 0 ) { //-1 signals low surrogate, that we got a surrogate pair on last iteration.
                 continue;
             }
-            else if( codePoint === 0xFFFD || //Don't encode replacement characters,or invalid codepoints
+            else if( codePoint === 0xFFFD ||
                 codePoint > 0x10FFFF
             ) { 
-                continue;
+                codePoint = getEncoderErrorCodePoint( fallback );
+                if( codePoint < 0 ) {
+                    continue;
+                }
+                else {
+                    codePoint = 0xFFFD;
+                }
             }
 
             if( endianess === BIG_ENDIAN ) {
@@ -1229,12 +1278,12 @@ Korean <-- multi-byte
         return bom + ret.join("");
     }
 
-    unicode.toUTF32LE = function( str ) {
-        return unicode.toUTF32( str, LITTLE_ENDIAN );
+    unicode.toUTF32LE = function( str, fallback ) {
+        return unicode.toUTF32( str, fallback, LITTLE_ENDIAN );
     };
 
-    unicode.toUTF32BE = function( str ) {
-        return unicode.toUTF32( str, BIG_ENDIAN );
+    unicode.toUTF32BE = function( str, fallback ) {
+        return unicode.toUTF32( str, fallback, BIG_ENDIAN );
     };
     
     unicode.fromUTF32 = function( str, fallback, endianess ) {
