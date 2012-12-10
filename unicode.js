@@ -1772,8 +1772,114 @@ Korean <-- multi-byte
             });
         };
     
-    })()
+    })();
 
+    (function() {
+    
+
+    
+        var base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        
+        function base64value( code ) {
+            if( 65 <= code && code <= 90 ) {
+                return code - 65;
+            }
+            else if( 97 <= code && code <= 122 ) {
+                return code - 71;
+            }
+            else if( 48 <= code && code <= 57 ) {
+                return code + 4;
+            }
+            else if( code === 43 ) {
+                return 62;
+            }
+            else if( code === 47 ) {
+                return 63;
+            }
+            return NaN;
+        }
+        
+        unicode.toBase64 = function( str ) {
+            checkBinary(str);
+            if( str === "" ) {
+                return str;
+            }
+            var ret = [];
+            
+            var i = 0,
+                b1, b2, b3, b4,
+                ch1, ch2, ch3,
+                len = str.length;
+                
+            for( i = 0; i < len; i+=3 ) {
+                ch1 = str.charCodeAt(i);
+                ch2 = str.charCodeAt(i+1);
+                ch3 = str.charCodeAt(i+2);
+                
+                //NaN is converted to 0 in bitwise operations
+                b1 = base64.charAt((ch1 & 0xFC) >>> 2);
+                b2 = base64.charAt(((ch1 & 0x03) << 4) | ((ch2 & 0xF0) >>> 4));
+                b3 = base64.charAt(((ch2 & 0x0F) << 2) | ((ch3 & 0xC0) >>> 6));
+                b4 = base64.charAt((ch3 & 0x3F));
+
+                if( isNaN(ch2) ) {
+                    b3 = b4 = "=";
+                }
+                else if( isNaN(ch3) ) {
+                    b4 = "=";
+                }
+
+                ret.push(b1, b2, b3, b4);                
+            }
+            
+            return ret.join("");
+        };
+        
+        
+        unicode.fromBase64 = function( str ) {
+            var ret = [];
+            if( str === "" ) {
+                return str;
+            }
+            var i = 0,
+                b1, b2, b3, b4,
+                ch1, ch2, ch3,
+                len = str.length;
+                
+            for( i = 0; i < len; i+=4 ) {
+                b1 = base64value(str.charCodeAt(i));
+                b2 = base64value(str.charCodeAt(i+1));
+                b3 = base64value(str.charCodeAt(i+2));
+                b4 = base64value(str.charCodeAt(i+3));
+                
+                if( isNaN(b1) < 0 || isNaN(b2) < 0  ) {
+                    throw new DecoderError( "Invalid base64");
+                }
+                
+                //b3 or b4 cannot be invalid if we are going to the next iteration
+                if( (isNaN(b3) || isNaN(b4)) && ( i+4 < len ) ) {
+                    throw new DecoderError( "Invalid base64");
+                }
+
+                ch1 = ((b1 & 0x3f) << 2) | ((b2 & 0x30) >>> 4);
+                ch2 = ((b2 & 0x0F) << 4 ) | ((b3 & 0x3C) >>> 2);
+                ch3 = ((b3 & 0x03) << 6 ) | ((b4 & 0x3F) >>> 0);
+
+                if( isNaN(b3) ) {
+                    ret.push( String.fromCharCode(ch1));
+                }
+                else if( isNaN(b4) ) {
+                    ret.push( String.fromCharCode(ch1, ch2));
+                }
+                else {
+                    ret.push( String.fromCharCode(ch1, ch2, ch3));                
+                }
+            }
+            
+            return ret.join("");
+        };
+    
+    })();
 
 
     if( typeof module !== "undefined" && module.exports ) {
