@@ -27,7 +27,6 @@ THE SOFTWARE.
 todo:
 Use fallback mechanism when encoding to UTFs as well
 
-Bounds checking,( NaN |15) === 15
 GBK <-- multi-byte,
 gb18030 <-- multi-byte,
 big5 <-- multi-byte,
@@ -1103,11 +1102,9 @@ Korean <-- multi-byte
                             if( 0xDC00 <= low && low <= 0xDFFF ) {
                                 i+=2; //Valid surrogate pair so ignore the upcoming low
                                 codePoint = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000;
-                            }
+                            }// no else - checkDecodedCodePoint will handle invalid low
                         }
-                        //checkDecodedCodePoint will handle the invalid high
-                    }
-                    //checkDecodedCodePoint will handle invalid low
+                    }// no else - checkDecodedCodePoint will handle invalid low
                 }
                 checkDecodedCodePoint( codePoint, codePoints, fallback );
             }        
@@ -1134,12 +1131,12 @@ Korean <-- multi-byte
                             if( 0xDC00 <= low && low <= 0xDFFF ) {
                                 i+=2; //Valid surrogate pair so ignore the upcoming low
                                 codePoint = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000;
-                            }
+                            }// no else - checkDecodedCodePoint will handle the invalid high
                         }
-                        //checkDecodedCodePoint will handle the invalid high
-                    }
+                        
+                    }// no else - checkDecodedCodePoint will handle invalid low
                 }
-                //checkDecodedCodePoint will handle invalid low
+                
                 checkDecodedCodePoint( codePoint, codePoints, fallback );
             }
         }
