@@ -26,7 +26,8 @@ THE SOFTWARE.
 
 todo:
 Use fallback mechanism when encoding to UTFs as well
-htmlentities
+
+Bounds checking,( NaN |15) === 15
 GBK <-- multi-byte,
 gb18030 <-- multi-byte,
 big5 <-- multi-byte,
@@ -106,9 +107,7 @@ Korean <-- multi-byte
             throw new DecoderError( "String is not in binary form" );
         }
     }
-    
-    
-    
+
     function checkFallback( fallback ) {
         switch( fallback ) {
             case REPLACEMENT_FALLBACK:
@@ -139,19 +138,21 @@ Korean <-- multi-byte
     var MACHINE_ENDIANESS;
     var _fallback = REPLACEMENT_FALLBACK;
     
-    unicode.fallback = function( fallback ) {
-        if( arguments.length < 1 ) {
-            return _fallback;
-        }
-        else {
-            switch( fallback ) {
-                case REPLACEMENT_FALLBACK:
-                case ERROR_FALLBACK:
-                case IGNORE_FALLBACK:
-                    _fallback = fallback;
-                    break;
-                default:
-                    throw new TypeError( "Invalid fallback type" );
+    unicode.config = {
+        fallback: function( fallback ) {
+            if( arguments.length < 1 ) {
+                return _fallback;
+            }
+            else {
+                switch( fallback ) {
+                    case REPLACEMENT_FALLBACK:
+                    case ERROR_FALLBACK:
+                    case IGNORE_FALLBACK:
+                        _fallback = fallback;
+                        break;
+                    default:
+                        throw new TypeError( "Invalid fallback type" );
+                }
             }
         }
     };
@@ -1081,42 +1082,62 @@ Korean <-- multi-byte
         
         if( endianess === BIG_ENDIAN ) {
             for( ; i < len; i+=2 ) {
-                codePoint = (str.charCodeAt(i) << 8) |
-                            str.charCodeAt(i+1);
-                
-                //Lead surrogate 0xD800..0xDBFF
-                if( 0xD800 <= codePoint && codePoint <= 0xDBFF ) {
-                    high = codePoint;
-                    //peek low surrogate
-                    low = (str.charCodeAt(i+2) << 8) |
-                            str.charCodeAt(i+3);
-                            //Trail surrogate 0xDC00..0xDFFF
-                    if( 0xDC00 <= low && low <= 0xDFFF ) {
-                        i+=2; //Valid surrogate pair so ignore the upcoming low
-                        codePoint = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000;
-                    }
-                    //checkDecodedCodePoint will handle the invalid high
+                if( i+1 >= len ) {
+                    codePoint = 0xFFFD;
                 }
-                //checkDecodedCodePoint will handle invalid low
+                else {
+                    codePoint = (str.charCodeAt(i) << 8) |
+                                str.charCodeAt(i+1);
+
+                    //Lead surrogate 0xD800..0xDBFF
+                    if( 0xD800 <= codePoint && codePoint <= 0xDBFF ) {
+                        if( i + 3 >= len ) {
+                            codePoint = 0xFFFD;
+                        }
+                        else {
+                            high = codePoint;
+                            //peek low surrogate
+                            low = (str.charCodeAt(i+2) << 8) |
+                                    str.charCodeAt(i+3);
+                                    //Trail surrogate 0xDC00..0xDFFF
+                            if( 0xDC00 <= low && low <= 0xDFFF ) {
+                                i+=2; //Valid surrogate pair so ignore the upcoming low
+                                codePoint = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000;
+                            }
+                        }
+                        //checkDecodedCodePoint will handle the invalid high
+                    }
+                    //checkDecodedCodePoint will handle invalid low
+                }
                 checkDecodedCodePoint( codePoint, codePoints, fallback );
             }        
         }
         else {
             for( ; i < len; i+=2 ) {
-                codePoint = str.charCodeAt(i) |
-                            (str.charCodeAt(i+1) << 8 );
-                //Lead surrogate 0xD800..0xDBFF
-                if( 0xD800 <= codePoint && codePoint <= 0xDBFF ) {
-                    high = codePoint;
-                    //peek low surrogate
-                    low = str.charCodeAt(i+2) |
-                            (str.charCodeAt(i+3) << 8 );
-                            //Trail surrogate 0xDC00..0xDFFF
-                    if( 0xDC00 <= low && low <= 0xDFFF ) {
-                        i+=2; //Valid surrogate pair so ignore the upcoming low
-                        codePoint = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000;
+                if( i + 1 >= len ) {
+                    codePoint = 0xFFFD;
+                }
+                else {
+                    codePoint = str.charCodeAt(i) |
+                                (str.charCodeAt(i+1) << 8 );
+                    //Lead surrogate 0xD800..0xDBFF
+                    if( 0xD800 <= codePoint && codePoint <= 0xDBFF ) {
+                        if( i + 3 >= len ) {
+                            codePoint = 0xFFFD;
+                        }
+                        else {
+                            high = codePoint;
+                            //peek low surrogate
+                            low = str.charCodeAt(i+2) |
+                                    (str.charCodeAt(i+3) << 8 );
+                                    //Trail surrogate 0xDC00..0xDFFF
+                            if( 0xDC00 <= low && low <= 0xDFFF ) {
+                                i+=2; //Valid surrogate pair so ignore the upcoming low
+                                codePoint = ((high - 0xD800) * 0x400) + (low - 0xDC00) + 0x10000;
+                            }
+                        }
+                        //checkDecodedCodePoint will handle the invalid high
                     }
-                    //checkDecodedCodePoint will handle the invalid high
                 }
                 //checkDecodedCodePoint will handle invalid low
                 checkDecodedCodePoint( codePoint, codePoints, fallback );
@@ -1237,19 +1258,30 @@ Korean <-- multi-byte
         
         if( endianess === BIG_ENDIAN ) {
             for( ; i < len; i+=4 ) {
-                codePoint = (str.charCodeAt(i) << 24) |
+                if( i+3 >= len ) {
+                    codePoint = 0xFFFD;
+                }
+                else {
+                    codePoint = (str.charCodeAt(i) << 24) |
                             (str.charCodeAt(i+1) << 16) |
                             (str.charCodeAt(i+2) << 8) |
                             str.charCodeAt(i+3);
+                }
                 checkDecodedCodePoint( codePoint, codePoints, fallback );
             }        
         }
         else {
             for( ; i < len; i+=4 ) {
-                codePoint = str.charCodeAt(i) |
+                if( i+3 >= len ) {
+                    codePoint = 0xFFFD;
+                }
+                else {
+                    codePoint = str.charCodeAt(i) |
                             (str.charCodeAt(i+1) << 8) |
                             (str.charCodeAt(i+2) << 16) |
                             (str.charCodeAt(i+3) << 24);
+                
+                }
                 checkDecodedCodePoint( codePoint, codePoints, fallback );
             }
         }
@@ -1619,7 +1651,7 @@ Korean <-- multi-byte
                     continue;
                 }
                 else if( codePoint === 0xFFFD || //Don't encode replacement characters, or invalid codepoints
-                    codePoint > 0x10FFFF
+                         codePoint > 0x10FFFF
                 ) { 
                     continue;
                 }
@@ -1685,5 +1717,22 @@ Korean <-- multi-byte
     else if ( global ) {
         global.unicode = unicode;
     }
+    var stringExtended = false;
+    
+    unicode.config.extendString = function() {
+        if( stringExtended ) return;
+        for( var key in unicode ) {
+            if( unicode.hasOwnProperty(key) && typeof unicode[key] === "function") {
+                if(key==="from") {
+                    return;
+                }
+                (function(key){
+                    String.prototype[key] = function( arg1, arg2, arg3, arg4, arg5 ) {
+                        return unicode[key]( this.toString(), arg1, arg2, arg3, arg4, arg5 );
+                    };
+                })(key);
+            }
+        }
+    };
         
 })(this, this.String);

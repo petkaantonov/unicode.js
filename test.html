@@ -23,7 +23,7 @@ var astralWords = [unicode.from(0x20000) + unicode.from(0x20020) + unicode.from(
 codecs.forEach( function(codec) {
     [asciiWords,bmpWords,astralWords].forEach( function(words){
         words.forEach( function( word ) {
-            console.log( unicode["from"+codec](unicode["to"+codec](word)) === word );
+            console.assert( unicode["from"+codec](unicode["to"+codec](word)) === word );
         });
     });
 });
@@ -32,21 +32,39 @@ codecs.forEach( function(codec) {
 //http://mail.python.org/pipermail/python-dev/2005-April/052501.html
 //IF the bom is first character in a BOM possible encoding, it should never appear in the resulting string 
 
-console.log( unicode.fromUTF8(unicode.UTF8BOM) === "" );
-console.log( unicode.fromUTF16(unicode.UTF16LEBOM) === "" );
-console.log( unicode.fromUTF16(unicode.UTF16BEBOM) === "");
-console.log( unicode.fromUTF32(unicode.UTF32LEBOM) === "");
-console.log( unicode.fromUTF32(unicode.UTF32BEBOM) === "");
+console.assert( unicode.fromUTF8(unicode.UTF8BOM) === "" );
+console.assert( unicode.fromUTF16(unicode.UTF16LEBOM) === "" );
+console.assert( unicode.fromUTF16(unicode.UTF16BEBOM) === "");
+console.assert( unicode.fromUTF32(unicode.UTF32LEBOM) === "");
+console.assert( unicode.fromUTF32(unicode.UTF32BEBOM) === "");
 
 //Successive BOMs in the text must be treated as word joiners
-console.log( unicode.fromUTF8(unicode.UTF8BOM+unicode.UTF8BOM) === "\u2060" );
-console.log( unicode.fromUTF16(unicode.UTF16LEBOM+unicode.UTF16LEBOM+unicode.UTF16LEBOM) === "\u2060\u2060" );
-console.log( unicode.fromUTF16(unicode.UTF16BEBOM+unicode.UTF16BEBOM) === "\u2060");
-console.log( unicode.fromUTF32(unicode.UTF32LEBOM+unicode.UTF32LEBOM) === "\u2060");
-console.log( unicode.fromUTF32(unicode.UTF32BEBOM+unicode.UTF32BEBOM) === "\u2060");
+console.assert( unicode.fromUTF8(unicode.UTF8BOM+unicode.UTF8BOM) === "\u2060" );
+console.assert( unicode.fromUTF16(unicode.UTF16LEBOM+unicode.UTF16LEBOM+unicode.UTF16LEBOM) === "\u2060\u2060" );
+console.assert( unicode.fromUTF16(unicode.UTF16BEBOM+unicode.UTF16BEBOM) === "\u2060");
+console.assert( unicode.fromUTF32(unicode.UTF32LEBOM+unicode.UTF32LEBOM) === "\u2060");
+console.assert( unicode.fromUTF32(unicode.UTF32BEBOM+unicode.UTF32BEBOM) === "\u2060");
 
 //BOM overrides explicit BE
-console.log( unicode.fromUTF32BE(unicode.UTF32BEBOM+unicode.UTF32BEBOM) === "\u2060");
+console.assert( unicode.fromUTF32BE(unicode.UTF32BEBOM+unicode.UTF32BEBOM) === "\u2060");
+
+//http://lists.whatwg.org/htdig.cgi/whatwg-whatwg.org/2011-December/034260.html
+//aim for same results as  trident/webkit
+var input = "\x00\x7A";
+var bom = "";
+console.assert( unicode.fromUTF16( bom + input ) === "\u7a00" )
+console.assert( unicode.fromUTF16LE( bom + input ) === "\u7a00" )
+console.assert( unicode.fromUTF16BE( bom + input ) === "\u007a" )
+bom = unicode.UTF16LEBOM;
+console.assert( unicode.fromUTF16( bom + input ) === "\u7a00" )
+console.assert( unicode.fromUTF16LE( bom + input ) === "\u7a00" )
+console.assert( unicode.fromUTF16BE( bom + input ) === "\u7a00")
+bom = unicode.UTF16BEBOM;
+console.assert( unicode.fromUTF16( bom + input ) === "\u007a" )
+console.assert( unicode.fromUTF16LE( bom + input ) === "\u007a" )
+console.assert( unicode.fromUTF16BE( bom + input ) === "\u007a" )
+
+
 
 </script>
 </body>
