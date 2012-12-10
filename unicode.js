@@ -797,10 +797,8 @@ Korean <-- multi-byte
         }
         else {
             codePoint >>>= 0; //prevent sign extension
-            //Surrogate code point, non-character or too high codepoint
+            //Surrogate code point, or too high codepoint
             if( (0xD800 <= codePoint && codePoint <= 0xDFFF) ||
-                codePoint === 0xFFFE ||
-                codePoint === 0xFFFF ||
                 codePoint > 0x10FFFF ) {
                 codePoint = 0xFFFD;
             }
@@ -836,9 +834,7 @@ Korean <-- multi-byte
             if( codePoint < 0 ) { //-1 signals low surrogate, that we got a surrogate pair on last iteration.
                 continue;
             }
-            else if( codePoint === 0xFFFD || //Don't encode replacement characters, non characters or invalid codepoints
-                codePoint === 0xFFFE ||
-                codePoint === 0xFFFF ||
+            else if( codePoint === 0xFFFD || //Don't encode replacement characters or invalid codepoints
                 codePoint > 0x10FFFF
             ) { 
                 continue;
@@ -989,8 +985,6 @@ Korean <-- multi-byte
                 continue;
             }
             else if( codePoint === 0xFFFD || //Don't encode replacement characters, non characters or invalid codepoints
-                codePoint === 0xFFFE ||
-                codePoint === 0xFFFF ||
                 codePoint > 0x10FFFF
             ) { 
                 continue;
@@ -1058,34 +1052,27 @@ Korean <-- multi-byte
             len = str.length;
 
         fallback = checkFallback(fallback);
-        switch( endianess ) {
-            //Endianess explicitly given from BE and LE methods
-            case LITTLE_ENDIAN:
-            case BIG_ENDIAN:
-                break;
-            default:
-                if( len >= 2 ) {
-                    var bom = (str.charCodeAt(0) << 8) |
-                              str.charCodeAt(1);
-                    if( bom === 0xFFFE ) {
-                        endianess = LITTLE_ENDIAN;
-                        i = 2; //Skip bom
-                    }
-                    else if( bom === 0xFEFF ) {
-                        endianess = BIG_ENDIAN;
-                        i = 2; //Skip bom
-                    }
-                    else {
-                        //UTF-16 without BOM is illegal but BIG ENDIAN is then used
-                        endianess = BIG_ENDIAN;
-                    }
-                }
-                else {
-                    //UTF-16 without BOM is illegal but BIG ENDIAN is then used
-                    endianess = BIG_ENDIAN;
-                }
-            
+
+        if( len >= 2 ) {
+            var bom = (str.charCodeAt(0) << 8) |
+                      str.charCodeAt(1);
+            if( bom === 0xFFFE ) {
+                endianess = LITTLE_ENDIAN;
+                i = 2; //Skip bom
+            }
+            else if( bom === 0xFEFF ) {
+                endianess = BIG_ENDIAN;
+                i = 2; //Skip bom
+            }
+            else {
+                endianess = endianess || LITTLE_ENDIAN;
+            }
         }
+        else {
+            endianess = endianess || LITTLE_ENDIAN;
+        }
+            
+        
         
         var codePoints = [],
             codePoint,
@@ -1177,9 +1164,7 @@ Korean <-- multi-byte
             if( codePoint < 0 ) { //-1 signals low surrogate, that we got a surrogate pair on last iteration.
                 continue;
             }
-            else if( codePoint === 0xFFFD || //Don't encode replacement characters, non characters or invalid codepoints
-                codePoint === 0xFFFE ||
-                codePoint === 0xFFFF ||
+            else if( codePoint === 0xFFFD || //Don't encode replacement characters,or invalid codepoints
                 codePoint > 0x10FFFF
             ) { 
                 continue;
@@ -1221,36 +1206,30 @@ Korean <-- multi-byte
             len = str.length;
 
         fallback = checkFallback(fallback);
-        switch( endianess ) {
-            //Endianess explicitly given from BE and LE methods
-            case LITTLE_ENDIAN:
-            case BIG_ENDIAN:
-                break;
-            default:
-                if( len >= 4 ) {
-                    var bom = ((str.charCodeAt(0) << 24) |
-                              (str.charCodeAt(1) << 16) |
-                              (str.charCodeAt(2) << 8) |
-                              str.charCodeAt(3)) >>> 0;
-                    if( bom === 0xfffe0000 ) {
-                        endianess = LITTLE_ENDIAN;
-                        i = 4; //Skip bom
-                    }
-                    else if( bom === 0xfeff ) {
-                        endianess = BIG_ENDIAN;
-                        i = 4; //Skip bom
-                    }
-                    else {
-                        //UTF-32 without BOM is illegal but BIG ENDIAN is then used
-                        endianess = BIG_ENDIAN;
-                    }
-                }
-                else {
-                    //UTF-32 without BOM is illegal but BIG ENDIAN is then used
-                    endianess = BIG_ENDIAN;
-                }
-            
+
+        if( len >= 4 ) {
+            var bom = ((str.charCodeAt(0) << 24) |
+                      (str.charCodeAt(1) << 16) |
+                      (str.charCodeAt(2) << 8) |
+                      str.charCodeAt(3)) >>> 0;
+            if( bom === 0xfffe0000 ) {
+                endianess = LITTLE_ENDIAN;
+                i = 4; //Skip bom
+            }
+            else if( bom === 0xfeff ) {
+                endianess = BIG_ENDIAN;
+                i = 4; //Skip bom
+            }
+            else {
+                endianess = endianess || LITTLE_ENDIAN;
+            }
         }
+        else {
+
+            endianess = endianess || LITTLE_ENDIAN;
+        }
+            
+        
         
         var codePoints = [],
             codePoint,
@@ -1639,9 +1618,7 @@ Korean <-- multi-byte
                 if( codePoint < 0 ) { //-1 signals low surrogate, that we got a surrogate pair on last iteration.
                     continue;
                 }
-                else if( codePoint === 0xFFFD || //Don't encode replacement characters, non characters or invalid codepoints
-                    codePoint === 0xFFFE ||
-                    codePoint === 0xFFFF ||
+                else if( codePoint === 0xFFFD || //Don't encode replacement characters, or invalid codepoints
                     codePoint > 0x10FFFF
                 ) { 
                     continue;
@@ -1665,7 +1642,7 @@ Korean <-- multi-byte
                      ( 0x20 <= codePoint && codePoint <= 0x7E ) ) &&
                      codePoint !== 39 ) {
                     ret.push( String.fromCharCode(codePoint));
-                }´
+                }
                 else {
                     ret.push( "&#" + codePoint + ";" );
                 }
