@@ -120,8 +120,8 @@ Korean <-- multi-byte
     }
     
     function isCodePoint( code ) {
-        return 0x000 <= code && code < 0xD800 &&
-                0xDFFF < code && code <= 0x10FFFF;
+        return (0x000 <= code && code < 0xD800) ||
+                (0xDFFF < code && code <= 0x10FFFF);
     }
     
     function isHighSurrogate( code ) {
