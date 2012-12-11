@@ -926,7 +926,7 @@ Korean <-- multi-byte
     function getEncoderErrorCodePoint( fallback ) {
         switch( fallback ) {
             case ERROR_FALLBACK:
-                throw new EncoderError( "Cannot encode U+" + codePoint.toString(16).toUpperCase() );
+                throw new EncoderError( "Cannot encode codepoint to target encoding" );
 
             case IGNORE_FALLBACK:
                 return -1;
@@ -950,12 +950,12 @@ Korean <-- multi-byte
             else if( codePoint === 0xFFFD ||
                 codePoint > 0x10FFFF
             ) { 
-                codePoint = getEncoderErrorCodePoint( codePoint, fallback );
+                codePoint = getEncoderErrorCodePoint( fallback );
                 if( codePoint < 0 ) {
                     continue;
                 }
                 else {
-                    codePoint = 0xFFFD;
+                    ret.push( String.fromCharCode( 0xEF, 0xBF, 0xBD));
                 }
             }
             

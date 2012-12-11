@@ -67,6 +67,14 @@ console.assert( unicode.fromUTF16LE( bom + input ) === "\u007a" )
 console.assert( unicode.fromUTF16BE( bom + input ) === "\u007a" )
 
 
+console.assert(unicode.fromUTF16(unicode.toUTF16("\ud800")) === "\ufffd");
+console.assert(unicode.fromUTF16LE(unicode.toUTF16LE("\ud800")) === "\ufffd");
+console.assert(unicode.fromUTF16BE(unicode.toUTF16BE("\ud800")) === "\ufffd");
+console.assert(unicode.fromUTF32(unicode.toUTF32("\ud800")) === "\ufffd");
+console.assert(unicode.fromUTF32LE(unicode.toUTF32LE("\ud800")) === "\ufffd");
+console.assert(unicode.fromUTF32BE(unicode.toUTF32BE("\ud800")) === "\ufffd");
+console.assert(unicode.fromUTF8(unicode.toUTF8("\ud800")) === "\ufffd");
+
 
 </script>
 </body>
