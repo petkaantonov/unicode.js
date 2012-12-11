@@ -27,6 +27,13 @@ THE SOFTWARE.
 todo:
 Use fallback mechanism when encoding to UTFs as well
 
+More 8-bit encodings, improve aliasing, add all aliases
+uint8.charCodeAt method to allow arrays
+
+New project (Short sample >0x80)
+Tests
+Docs
+
 GBK <-- multi-byte,
 gb18030 <-- multi-byte,
 big5 <-- multi-byte,
@@ -46,6 +53,13 @@ Korean <-- multi-byte
         Type.prototype = f;
         return new Type();
     };
+
+    var toClassName = {}.toString;
+
+    var isArray = Array.isArray || function( obj ) {
+        return toClassName.call( obj ) === "[object Array]";
+    };
+
     
     //Credi panzi @ stackoverflow http://stackoverflow.com/a/3535758/995876
     function err(message, fileName, lineNumber) {
@@ -102,9 +116,14 @@ Korean <-- multi-byte
     var rHasBeyondBinary = /[^\x00-\xFF]/;
     
     function checkBinary( str ) {
-        if( rHasBeyondBinary.test( str ) ) {
+        if( str instanceof ByteArray || isArray(str) ) {
+            return str;
+        }
+        
+        if( typeof str !== "string" || rHasBeyondBinary.test( str ) ) {
             throw new DecoderError( "String is not in binary form" );
         }
+        return str;
     }
 
     function checkFallback( fallback ) {
@@ -188,6 +207,33 @@ Korean <-- multi-byte
         }
     
     })();
+
+    var ByteArray;
+    
+    function arrayByteAt(i) {
+        if( i >= this.length ) {
+            return NaN;
+        }
+        var ret = this[i];
+        if( ! ( 0x00 <= ret && ret <= 0xFF ) ) {
+            throw new DecoderError( "Invalid byte value " + ret );
+        }
+        return ret;
+    };
+    
+    try {
+        ByteArray = Uint8Array;
+        ByteArray.prototype.charCodeAt = function(i) {
+                return i >= this.length ? NaN : this[i];
+        };
+        Array.prototype.charCodeAt = arrayByteAt;
+    }
+    catch(e) {
+        ByteArray = [].constructor;
+        ByteArray.prototype.charCodeAt = arrayByteAt;
+    }
+    
+
     
     unicode.MACHINE_ENDIANESS = MACHINE_ENDIANESS;
 
@@ -313,7 +359,7 @@ Korean <-- multi-byte
             };
 
             unicode["from" + propName] = function( str, fallback ) {
-                checkBinary(str);
+                str = checkBinary(str);
                 fallback = checkFallback(fallback);
                 var codePoints = [],
                     i = 0, len = str.length;
@@ -345,6 +391,25 @@ Korean <-- multi-byte
         0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD, 0xFFFD
     ]), "ASCII", "ASCII", "USASCII");
     
+    make8BitCharset([
+        0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F
+        ,0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,0x0018,0x0019,0x001A,0x001B,0x001C,0x001D,0x001E,0x001F
+        ,0x0020,0x0021,0x0022,0x0023,0x0024,0x0025,0x0026,0x0027,0x0028,0x0029,0x002A,0x002B,0x002C,0x002D,0x002E,0x002F
+        ,0x0030,0x0031,0x0032,0x0033,0x0034,0x0035,0x0036,0x0037,0x0038,0x0039,0x003A,0x003B,0x003C,0x003D,0x003E,0x003F
+        ,0x0040,0x0041,0x0042,0x0043,0x0044,0x0045,0x0046,0x0047,0x0048,0x0049,0x004A,0x004B,0x004C,0x004D,0x004E,0x004F
+        ,0x0050,0x0051,0x0052,0x0053,0x0054,0x0055,0x0056,0x0057,0x0058,0x0059,0x005A,0x005B,0x005C,0x005D,0x005E,0x005F
+        ,0x0060,0x0061,0x0062,0x0063,0x0064,0x0065,0x0066,0x0067,0x0068,0x0069,0x006A,0x006B,0x006C,0x006D,0x006E,0x006F
+        ,0x0070,0x0071,0x0072,0x0073,0x0074,0x0075,0x0076,0x0077,0x0078,0x0079,0x007A,0x007B,0x007C,0x007D,0x007E,0x007F
+        ,0x00C7,0x00FC,0x00E9,0x00E2,0x00E4,0x00E0,0x00E5,0x00E7,0x00EA,0x00EB,0x00E8,0x00EF,0x00EE,0x00EC,0x00C4,0x00C5
+        ,0x00C9,0x00E6,0x00C6,0x00F4,0x00F6,0x00F2,0x00FB,0x00F9,0x00FF,0x00D6,0x00DC,0x00A2,0x00A3,0x00A5,0x20A7,0x0192
+        ,0x00E1,0x00ED,0x00F3,0x00FA,0x00F1,0x00D1,0x00AA,0x00BA,0x00BF,0x2310,0x00AC,0x00BD,0x00BC,0x00A1,0x00AB,0x00BB
+        ,0x2591,0x2592,0x2593,0x2502,0x2524,0x2561,0x2562,0x2556,0x2555,0x2563,0x2551,0x2557,0x255D,0x255C,0x255B,0x2510
+        ,0x2514,0x2534,0x252C,0x251C,0x2500,0x253C,0x255E,0x255F,0x255A,0x2554,0x2569,0x2566,0x2560,0x2550,0x256C,0x2567
+        ,0x2568,0x2564,0x2565,0x2559,0x2558,0x2552,0x2553,0x256B,0x256A,0x2518,0x250C,0x2588,0x2584,0x258C,0x2590,0x2580
+        ,0x03B1,0x00DF,0x0393,0x03C0,0x03A3,0x03C3,0x00B5,0x03C4,0x03A6,0x0398,0x03A9,0x03B4,0x221E,0x03C6,0x03B5,0x2229
+        ,0x2261,0x00B1,0x2265,0x2264,0x2320,0x2321,0x00F7,0x2248,0x00B0,0x2219,0x00B7,0x221A,0x207F,0x00B2,0x25A0,0x00A0
+    ], "CP437", "CP437", "MsDosLatinUs", "OEM437" );
+    
     make8BitCharset( [
         0x0000,0x0001,0x0002,0x0003,0x0004,0x0005,0x0006,0x0007,0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x000F
         ,0x0010,0x0011,0x0012,0x0013,0x0014,0x0015,0x0016,0x0017,0x0018,0x0019,0x001A,0x001B,0x001C,0x001D,0x001E,0x001F
@@ -362,7 +427,7 @@ Korean <-- multi-byte
         ,0x2013,0x2014,0x201C,0x201D,0x2018,0x2019,0x00F7,0x25CA,0x00FF,0x0178,0x2044,0x20AC,0x2039,0x203A,0xFB01,0xFB02
         ,0x2021,0x00B7,0x201A,0x201E,0x2030,0x00C2,0x00CA,0x00C1,0x00CB,0x00C8,0x00CD,0x00CE,0x00CF,0x00CC,0x00D3,0x00D4
         ,0xF8FF,0x00D2,0x00DA,0x00DB,0x00D9,0x0131,0x02C6,0x02DC,0x00AF,0x02D8,0x02D9,0x02DA,0x00B8,0x02DD,0x02DB,0x02C7
-    ], "MacOsRoman", "MacOsRoman", "Mac OS Roman" );
+    ], "MacOsRoman", "Mac OS Roman" );
     
     make8BitCharset( ascii.concat([
         0x00C7,0x00FC,0x00E9,0x00E2,0x00E4,0x00E0,0x0105,0x00E7,0x00EA,0x00EB,0x00E8,0x00EF,0x00EE,0x0107,0x00C4,0x0104
@@ -866,7 +931,7 @@ Korean <-- multi-byte
             case IGNORE_FALLBACK:
                 return -1;
 
-            case REPLACE_FALLBACK:
+            case REPLACEMENT_FALLBACK:
                 return 0x003F; //"?"
         }
     }
@@ -926,7 +991,7 @@ Korean <-- multi-byte
     
 
     unicode.fromUTF8 = function( str, fallback ) {
-        checkBinary(str);
+        str = checkBinary(str);
         fallback = checkFallback(fallback);
         //Decode unicode code points from utf8 encoded binarystring
         var codePoints = [],
@@ -962,24 +1027,27 @@ Korean <-- multi-byte
                 codePoint = ((byte & 0xF) << 12) |
                         ((( ch2 = str.charCodeAt(i++)) & 0x3F) << 6 ) |
                         (( ch3 = str.charCodeAt(i++)) & 0x3F);
-                if( !( 0x7FF < codePoint && codePoint <= 0xFFFF ) ) {
-                    //Overlong sequence
-                    codePoint = 0xFFFD;
+                 //Check for legit 0xFFFD
+                if( codePoint !== 0xFFFD ) {
+                    if( !( 0x7FF < codePoint && codePoint <= 0xFFFF ) ) {
+                        //Overlong sequence
+                        codePoint = 0xFFFD;
+                    }
+                    else if( 
+                        ( ch2 & 0xC0 ) !== 0x80 || //must be 10xxxxxx
+                        ( ch3 & 0xC0 ) !== 0x80 //must be 10xxxxxx
+                        ) {
+                        codePoint = 0xFFFD;
+                    }
+
+                    if( codePoint === 0xFFFD ) {
+                        i -= 2; //Backtrack
+                    }
+                        //Ignore initial bom
+                    if( codePoint === 0xFEFF && i === 3) {
+                        continue;
+                    }
                 }
-                else if( 
-                    ( ch2 & 0xC0 ) !== 0x80 || //must be 10xxxxxx
-                    ( ch3 & 0xC0 ) !== 0x80 //must be 10xxxxxx
-               ) {
-                    codePoint = 0xFFFD;
-               }
-               
-               if( codePoint === 0xFFFD ) {
-                   i -= 2; //Backtrack
-               }
-                            //Ignore initial bom
-               if( codePoint === 0xFEFF && i === 3) {
-                   continue;
-               }
             }
             else if( (byte & 0xE0) === 0xC0 ) {
                 codePoint = ((byte & 0x1F) << 6) |
@@ -1108,7 +1176,7 @@ Korean <-- multi-byte
     };
 
     unicode.fromUTF16 = function( str, fallback, endianess ) {
-        checkBinary(str);
+        str = checkBinary(str);
         var i = 0,
             len = str.length;
 
@@ -1287,7 +1355,7 @@ Korean <-- multi-byte
     };
     
     unicode.fromUTF32 = function( str, fallback, endianess ) {
-        checkBinary(str);
+        str = checkBinary(str);
         var i = 0,
             len = str.length;
 
@@ -1369,18 +1437,11 @@ Korean <-- multi-byte
 
     (function(){
 
-        var ByteArray,
-            toArray = [].slice;
-            
-        try {
-            ByteArray = Uint8Array;
-        }
-        catch(e) {
-            ByteArray = [].constructor;
-        }
+        var toArray = [].slice;
+
 
         unicode.toByteArray = function (str) {
-            checkBinary(str);
+            str = checkBinary(str);
             var i,
                 len = str.length,
                 byteArr = new ByteArray(len);
@@ -1800,7 +1861,7 @@ Korean <-- multi-byte
         }
         
         unicode.toBase64 = function( str ) {
-            checkBinary(str);
+            str = checkBinary(str);
             if( str === "" ) {
                 return str;
             }
@@ -1880,6 +1941,21 @@ Korean <-- multi-byte
         };
     
     })();
+    
+    //under construction
+    function detectEncoding( str ) {
+        str = checkBinary(str);
+        var possibleBom = str.substr(0, Math.min(str.length, 4));
+        if( possibleBom === UTF8BOM ) {
+            return "UTF-8";
+        }
+        else if( possibleBom === UTF16LEBOM || possibleBom === UTF16BEBOM ) {
+            return "UTF-16";
+        }
+        else if( possibleBom === UTF32LEBOM || possibleBom === UTF32BEBOM ) {
+            return "UTF-32";
+        }
+    }
 
 
     if( typeof module !== "undefined" && module.exports ) {
@@ -1888,22 +1964,7 @@ Korean <-- multi-byte
     else if ( global ) {
         global.unicode = unicode;
     }
-    var stringExtended = false;
-    
-    unicode.config.extendString = function() {
-        if( stringExtended ) return;
-        for( var key in unicode ) {
-            if( unicode.hasOwnProperty(key) && typeof unicode[key] === "function") {
-                if(key==="from") {
-                    return;
-                }
-                (function(key){
-                    String.prototype[key] = function( arg1, arg2, arg3, arg4, arg5 ) {
-                        return unicode[key]( this.toString(), arg1, arg2, arg3, arg4, arg5 );
-                    };
-                })(key);
-            }
-        }
-    };
+
+
         
 })(this, this.String);
