@@ -1482,7 +1482,7 @@ Korean <-- multi-byte
             
             while( !isNaN( code = str.charCodeAt(i++) ) ) {
                 if(
-                    67 <= code && code <= 90 ||
+                    65 <= code && code <= 90 ||
                     97 <= code && code <= 122 ||
                     48 <= code && code <= 57 ||
                     45 <= code && code <= 46 ||
