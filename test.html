@@ -104,6 +104,23 @@ test( "Over-consumption", function() {
     ok( unicode.fromUTF8("\x41\xC2\x3E\x41", unicode.REPLACEMENT_FALLBACK) === "A\ufffd>A"  );
 });
 
+
+test( "EUC-jp decode", function() {
+    ok( unicode.fromEUCJP("\x8E\xB6\xB2\xCF\x8F\xB2\xB0") === "\uff76\u6cb3\u50ba" );
+    ok( unicode.fromEUCJP("\x8E\xB6\xB2\xCF\x8F\xB2\xB0\x61") === "\uff76\u6cb3\u50baa" );
+    ok( unicode.fromEUCJP("\x8E\xB6\xB2\xCF\x8F\xB2\xB0\x8e\x61") === "\uff76\u6cb3\u50ba?a" );
+    ok( unicode.fromEUCJP("\x8E\xB6\xB2\xCF\x8F\xB2\xB0\x61\x8e\x61") === "\uff76\u6cb3\u50baa?a" );
+});
+
+test( "Shift JIS decode", function() {
+    ok( unicode.fromShiftJIS("\xE7\x8B\xE7\x8C\xE7\x8D\xE7\x8E\xE7\x8F\xE7\x90\xE7\x91\xE7\x92") === "\u8FE2\u8FEA\u8FEF\u9087\u8FF4\u9005\u8FF9\u8FFA");
+    ok( unicode.fromShiftJIS("\xE7\x8B\xE7\x8C\xE7\x8D\xE7\x8E\xE7\x8F\xE7\x90\xE7\x91\xE7\x92\x61") === "\u8FE2\u8FEA\u8FEF\u9087\u8FF4\u9005\u8FF9\u8FFAa");
+    ok( unicode.fromShiftJIS("\xE7\x8B\xE7\x8C\xE7\x8D\xE7\x8E\xE7\x8F\xE7\x90\xE7\x91\xE7\x92\xff\xff") === "\u8FE2\u8FEA\u8FEF\u9087\u8FF4\u9005\u8FF9\u8FFA??");
+    ok( unicode.fromShiftJIS("\xE7\x8B\xE7\x8C\xE7\x8D\xE7\x8E\xE7\x8F\xE7\x90\xE7\x91\xE7\x92\x5c") === "\u8FE2\u8FEA\u8FEF\u9087\u8FF4\u9005\u8FF9\u8FFA\u00a5");
+});
+
+
+
 //Test fallback behavior in all encoders and decoders
 </script>
 <div id="qunit"></div>
